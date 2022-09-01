@@ -1,0 +1,14 @@
+Package: fiveneedlepine
+Title: Five Needle Pine Data Tools
+Version: 0.0.0.9000
+Authors@R: 
+    person("Sarah", "Wright", , "sarah_wright@nps.gov", role = c("aut", "cre"))
+Description: Performs QC, analysis, and visualization for data collected through the Five Needle Pine Monitoring Protocol.
+License: CC0
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.2
+Imports: 
+    fetchaccess (>= 0.1.0)
+Remotes:  
+    wright13/imd-fetchaccess-package
