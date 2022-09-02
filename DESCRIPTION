@@ -10,5 +10,8 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
 Imports: 
     fetchaccess (>= 0.1.0)
-Remotes:  
+Remotes: 
     wright13/imd-fetchaccess-package
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

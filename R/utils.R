@@ -36,10 +36,10 @@ get_data <- function(data_name = "all") {
   # Fetch data only
   if (length(data_name) == 1 && data_name == "data") {
     metadata_table_names <- c()
-  # Fetch all metadata
+    # Fetch all metadata
   } else if (length(data_name) == 1 && data_name == "metadata") {
     data_table_names <- c()
-  # Fetch only specified tables
+    # Fetch only specified tables
   } else if (all(data_name %in% data_table_names | data_name %in% metadata_table_names)) {
     data_table_names <- data_name[data_name %in% data_table_names]
     metadata_table_names <- data_name[data_name %in% metadata_table_names]
@@ -93,34 +93,34 @@ validMetadataTables <- function() {
 #' LoadPine("M:/Monitoring/Pine/DataExports/FNP_BackEnd.accdb")
 #' }
 loadPine <- function(data_path, dictionary_dir = data_dir, dictionary_filenames = c(tables = "data_dictionary_tables.txt",
-                                                                                  attributes = "data_dictionary_attributes.txt",
-                                                                                  categories = "data_dictionary_categories.txt")) {
+                                                                                    attributes = "data_dictionary_attributes.txt",
+                                                                                    categories = "data_dictionary_categories.txt")) {
   # Normalize paths
-  data_dir <- normalizePath(data_dir, mustWork = FALSE)
+  data_path <- normalizePath(data_path, mustWork = FALSE)
   dictionary_dir <- normalizePath(dictionary_dir, mustWork = FALSE)
   # Check whether paths point to .accdb or folder of csv/txt
-  is_csv <- (!is.null(data_dir) && !grepl("\\..+$", basename(data_dir), ignore.case = TRUE)) &&
+  is_csv <- (!is.null(data_path) && !grepl("\\..+$", basename(data_path), ignore.case = TRUE)) &&
     (!is.null(dictionary_dir) && !grepl("\\..+$", basename(dictionary_dir), ignore.case = TRUE))  # Are the data and metadata paths folders (presumably containing csv (data) and txt (metadata) files)?
-  is_accdb <- !is.null(data_dir) && grepl("*.\\.accdb$", data_dir, ignore.case = TRUE)  # Is the data an .accdb file?
+  is_accdb <- !is.null(data_path) && grepl("*.\\.accdb$", data_path, ignore.case = TRUE)  # Is the data an .accdb file?
 
   if (is_accdb) {
     ## Option 1: Read data from Access database
-    all_tables <- fetchaccess::fetchFromAccess(data_dir, data_prefix = "qExport_", lookup_prefix = c("tlu_", "tlu"), lookup_regex = "(^tlu_.*)|(^tbl_Sites$)", as.is = FALSE, add_r_classes = TRUE)
+    all_tables <- fetchaccess::fetchFromAccess(data_path, data_prefix = "qExport_", lookup_prefix = c("tlu_", "tlu"), lookup_regex = "(^tlu_.*)|(^tbl_Sites$)", as.is = FALSE, add_r_classes = TRUE)
     all_tables <- list(data = all_tables$data,
                        metadata = all_tables$metadata)
   } else if (is_csv) {
     ## Option 2: Read data from CSV
     # Load data dictionary
-    dict_tables <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["tables"]))
-    dict_attributes <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["attributes"]))
-    dict_categories <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["categories"]))
+    dict_tables <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["tables"]), col_types = "c", show_col_types = FALSE)
+    dict_attributes <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["attributes"]), col_types = "c", show_col_types = FALSE)
+    dict_categories <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["categories"]), col_types = "c", show_col_types = FALSE)
 
     # Create column type spec
     col_spec <- fetchaccess::makeColSpec(dict_attributes)
 
     # Read from CSV
     data <- mapply(function(table_name, file_name) {
-      df <- readr::read_csv(file.path(data_dir, file_name), col_types = col_spec[[table_name]])
+      df <- readr::read_csv(file.path(data_path, file_name), col_types = col_spec[[table_name]])
     }, dict_tables$tableName, dict_tables$fileName)
 
     names(data) <- dict_tables$tableName
@@ -152,8 +152,8 @@ loadPine <- function(data_path, dictionary_dir = data_dir, dictionary_filenames 
 #'
 writePine <- function(data_dir = here::here("data", "final"), dictionary_dir = here::here("data", "dictionary"),
                       dictionary_filenames = c(tables = "data_dictionary_tables.txt",
-                                             attributes = "data_dictionary_attributes.txt",
-                                             categories = "data_dictionary_categories.txt"),
+                                               attributes = "data_dictionary_attributes.txt",
+                                               categories = "data_dictionary_categories.txt"),
                       verbose = FALSE, ...)
 {
   fetchaccess::writeToFiles(all_tables = filterPine(...), data_dir = data_dir, dictionary_dir = dictionary_dir, lookup_dir = NA, metadata_filenames = metadata_filenames, verbose = verbose)
@@ -181,14 +181,38 @@ validFilters <- function() {
   return(filters)
 }
 
+#' Filter some or all of the pine dataset
+#'
+#' Use [validFilters()] to see list of valid values for filter arguments.
+#'
+#' @inheritParams get_data
+#' @inheritParams filterOne
+#' @param network Character vector of four letter network code(s)
+#' @param park Character vector of four letter park code(s)
+#' @param sample_frame Character vector of sample frame(s)
+#' @param panel Character vector of panel(s)
+#' @param site_code Character vector of site code(s)
+#' @param visit_year Chatacter vector of visit year(s)
+#' @param flag Character vector of data quality flag(s)
+#' @param protected_status Character vector of protected status(es)
+#' @param data_processing_level Character vector of data processing level(s)
+#'
+#' @return
+#' @export
+#'
 filterPine <- function(data_name = "all", network, park, sample_frame, panel, site_code, visit_year, flag, protected_status, data_processing_level, case_sensitive = FALSE, silent = FALSE) {
   dataset <- get_data(data_name)
   data <- dataset$data
   metadata <- dataset$metadata
 
+  # Convert visit year and panel to character in case they are passed in as numeric
   if (!missing(visit_year)) {
     visit_year <- as.character(visit_year)
   }
+  if (!missing(panel)) {
+    panel <- as.character(panel)
+  }
+  # Map filter values to column names
   all_filter_cols <- list(Network = getFilter(network),
                           Park = getFilter(park),
                           SampleFrame = getFilter(sample_frame),
@@ -198,7 +222,7 @@ filterPine <- function(data_name = "all", network, park, sample_frame, panel, si
                           Flag = getFilter(flag),
                           ProtectedStatus = getFilter(protected_status),
                           DataProcessingLevel = getFilter(data_processing_level))
-
+  # Get only columns to be filtered
   filter_cols <- all_filter_cols[!is.na(all_filter_cols)]
 
   data_names <- names(data)
@@ -208,15 +232,8 @@ filterPine <- function(data_name = "all", network, park, sample_frame, panel, si
   })
   names(data) <- data_names
 
-  metadata_names <- names(metadata)
-  metadata <- lapply(names(metadata), function(metadata_name){
-    df <- filterOne(metadata[[metadata_name]], metadata_name, filter_cols = filter_cols, case_sensitive = case_sensitive, silent = silent)
-    return(df)
-  })
-  names(metadata) <- metadata_names
-
   dataset <- list(data = data,
-       metadata = metadata)
+                  metadata = metadata)
 
   if (length(dataset$data) == 1 && length(dataset$metadata) == 0) {
     dataset <- dataset$data[[1]]
@@ -228,6 +245,14 @@ filterPine <- function(data_name = "all", network, park, sample_frame, panel, si
 }
 
 
+#' Helper function for filterPine
+#'
+#' @param arg Filter argument
+#' @param no_arg TRUE if arg is missing
+#' @param several.ok Allow multiple filter options?
+#'
+#' @return NA if arg is missing, char vector of filters otherwise.
+#'
 getFilter <- function(arg, no_arg = missing(arg), several.ok = TRUE) {
   if (no_arg) {
     arg <- NA
@@ -258,7 +283,7 @@ filterOne <- function(data, data_name, filter_cols, case_sensitive, silent) {
       cols_filtered <- c(cols_filtered, col)  # Use this to keep track of which columns were actually filtered
       filter_value <- filter_cols[[col]]  # Value(s) to filter on
       if (col == "VisitDate") {
-        data <- dplyr::filter(data, lubridate::year(!!as.symbol(col)) %in% as.character(filter_value))
+        data <- dplyr::filter(data, lubridate::year(!!as.symbol(col)) %in% filter_value)
       } else if (is.character(data[[col]]) & !case_sensitive) {
         data <- dplyr::filter(data, tolower(!!as.symbol(col)) %in% tolower(filter_value))  # Case-insensitive filtering
       } else {

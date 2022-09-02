@@ -6,15 +6,17 @@
 \usage{
 loadPine(
   data_path,
-  metadata_path = data_path,
-  metadata_filenames = c(tables = "data_dictionary_tables.txt", attributes =
+  dictionary_dir = data_dir,
+  dictionary_filenames = c(tables = "data_dictionary_tables.txt", attributes =
     "data_dictionary_attributes.txt", categories = "data_dictionary_categories.txt")
 )
 }
 \arguments{
 \item{data_path}{Path to either a five needle pine database backend (.accdb) or a folder containing CSV data files exported by \code{fetchaccess::fetchFromAccess()}.}
 
-\item{metadata_path}{Ignored unless \code{data_path} points to a folder of CSV files. The path to a folder containing data dictionary files exported by \code{fetchaccess::fetchFromAccess()}.}
+\item{dictionary_dir}{Ignored unless \code{data_path} points to a folder of CSV files. The path to a folder containing data dictionary files exported by \code{fetchaccess::fetchFromAccess()}.}
+
+\item{dictionary_filenames}{Names of data dictionary files. Typically you will want to leave these as the default.}
 }
 \value{
 A nested list containing lists \code{data} and \code{metadata}.
