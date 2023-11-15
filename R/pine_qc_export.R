@@ -4,11 +4,10 @@
 # rm(list=ls()) # start with a clean slate
 
 # TODO: PlotID_Number, SeedlingCount_ID, and PlotPhoto_ID are missing from query
-# TODO: should there be one QC function or should every table have its own function?
 # TODO: there's gotta be a more clear word than "domain value"
 # TODO: boleCanks_ITypes_Lower is named differently from mid and upper
-# TODO; have to call fiveneedlepine::loadPine() specifically
 # TODO: we can get rid of summmary table and might be able to get rid of exporting to excel
+#
 
 
 #' Creates an excel spreadsheet with any data quality flags present in the pine photo table
@@ -16,6 +15,8 @@
 #' @export
 photoDataQC <- function() {
 
+  here::here()
+  source("R/utils.R")
   photoFlags <- get_data("Photo")$data$Photo %>%
     dplyr::select(locationID, eventDate, park, bearing, location, cameraImageNumber, eventID) %>%
     # QC checks photo data and adds flags where necessary
@@ -40,45 +41,44 @@ photoDataQC <- function() {
       flagAllPhotosMissing = dplyr::case_when(
         is.na(eventID) ~ "M",
         TRUE ~ NA)) %>%
-    # Only return rows that have a flag
-    filter(if_any(starts_with("flag"), ~ !is.na(.x)))
+    # Only return rows that are not NA in one of the flag columns
+    dplyr::filter(dplyr::if_any(grep("(?i)flag", names(.)), ~ !is.na(.x)))
 
   # TODO: is it easier to read when each check has its own mutate statement or when they're all in one mutate??
-
-    # # If location reference does not match a domain value, add 'E' to the location reference flagging field, if missing add 'M'
-    # # TODO: might be a smoother way to do this by referencing location categories instead of hardcoding them
-    # dplyr::mutate(flagPhotoLocation = dplyr::case_when(
-    #   !(location %in% c('NE_Corner', 'NW_Corner', 'SE_Corner', 'SW_Corner', 'Landmark')) ~ "E",
-    #   is.na(location) & !is.na(eventID) ~ "M",
-    #   TRUE ~ NA)) %>%
-    # # If Camera Image Number is missing, add 'M' to the Camera Image Number flagging field
-    # dplyr::mutate(flagImageNum = dplyr::case_when(
-    #   is.na(cameraImageNumber) & !is.na(eventID) ~ "M",
-    #   TRUE ~ NA)) %>%
-    # # Checks if all photos are missing
-    # dplyr::mutate(flagAllPhotosMissing = dplyr::case_when(
-    #   is.na(eventID) ~ "M",
-    #   TRUE ~ NA)) %>%
-    # # Only return rows that have a flag
-    # dplyr::filter(
-    #   !is.na(flagAllPhotosMissing) | !is.na(flagImageNum) | !is.na(flagPhotoLocation) | !is.na(flagBearing))
+#
+#     # # If location reference does not match a domain value, add 'E' to the location reference flagging field, if missing add 'M'
+#     # TODO: might be a smoother way to do this by referencing location categories instead of hardcoding them
+#     dplyr::mutate(flagPhotoLocation = dplyr::case_when(
+#       !(location %in% c('NE_Corner', 'NW_Corner', 'SE_Corner', 'SW_Corner', 'Landmark')) ~ "E",
+#       is.na(location) & !is.na(eventID) ~ "M",
+#       TRUE ~ NA)) %>%
+#     # If Camera Image Number is missing, add 'M' to the Camera Image Number flagging field
+#     dplyr::mutate(flagImageNum = dplyr::case_when(
+#       is.na(cameraImageNumber) & !is.na(eventID) ~ "M",
+#       TRUE ~ NA)) %>%
+#     # Checks if all photos are missing
+#     dplyr::mutate(flagAllPhotosMissing = dplyr::case_when(
+#       is.na(eventID) ~ "M",
+#       TRUE ~ NA)) %>%
+#     # Only return rows that have a flag
+#       dplyr::filter(dplyr::if_any(starts_with("flag"), ~ !is.na(.x)))
 
   # Creates a table with how many flags there are for each category
   # TODO: could also just return only rows that have an error (AKA filter out all rows that have zero errors)
   photoFlagSummary <- photoFlags %>%
-    select(starts_with("flag")) %>%
-    pivot_longer(cols = starts_with("flag") , names_to = 'flagType', values_to = "errorType") %>%
-    mutate(error = case_when(
+    dplyr::select(grep("(?i)flag", names(.))) %>%
+    tidyr::pivot_longer(cols = grep("(?i)flag", names(.)) , names_to = 'flagType', values_to = "errorType") %>%
+    dplyr::mutate(error = dplyr::case_when(
         (errorType == 'E') ~ 1,
         TRUE ~ 0),
-      missing = case_when(
+      missing = dplyr::case_when(
         (errorType == 'M') ~ 1,
         TRUE ~ 0),
-      sample = case_when(
+      sample = dplyr::case_when(
         (errorType == 'S') ~ 1,
         TRUE ~ 0)) %>%
-    group_by(flagType) %>%
-    summarise(
+    dplyr::group_by(flagType) %>%
+    dplyr::summarise(
       totalError = sum(error),
       totalMissing = sum(missing),
       totalSample = sum(sample))
@@ -88,11 +88,11 @@ photoDataQC <- function() {
   folder <- "dataFlags"
   # Write csv of tree data flags to folder
   if(file.exists(folder)) {
-    readr::write_csv(photoFlags, paste0(folder, "/photoDataFlags_", format(now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
+    readr::write_csv(photoFlags, paste0(folder, "/photoDataFlags_", format(lubridate::now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
   } else {
     # if folder doesn't exist create folder then write csv of tree data flags
     dir.create("dataFlags")
-    readr::write_csv(photoFlags, paste0(folder, "/photoDataFlags_", format(now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
+    readr::write_csv(photoFlags, paste0(folder, "/photoDataFlags_", format(lubridate::now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
   }
 
     print(photoFlags)
@@ -144,16 +144,16 @@ seedlingDataQC <- function(){
     dplyr::mutate(flagTag = dplyr::case_when(
       (speciesCode != '_NONE' & speciesCode != '_NotSampled' & is.na(tag)) ~ 'M',
       TRUE ~ NA)) %>%
-    # Only return rows that have a flag
-    filter(if_any(starts_with("flag"), ~ !is.na(.x)))
+    # Only return rows that have are not NA in one of the flag columns
+    dplyr::filter(dplyr::if_any(grep("(?i)flag", names(.)), ~ !is.na(.x)))
 
 
   # TODO: check logic on this PlotID_Number no longer exists
   # also why are all the tags with count > 1 NA???
-  duplicateTag <- pine$data$Seedling %>%
-    group_by(park, eventDate, tag) %>%
-    summarize(count = dplyr::n()) %>%
-    filter(!is.na(tag) & count > 1)
+  # duplicateTag <- pine$data$Seedling %>%
+  #   group_by(park, eventDate, tag) %>%
+  #   summarize(count = dplyr::n()) %>%
+  #   filter(!is.na(tag) & count > 1)
 
     # TODO: finish updating this
           # #Returns seedling records with duplicate tags
@@ -177,19 +177,19 @@ seedlingDataQC <- function(){
 
   # Creates a summary table of how many flags there are for each category
   seedlingFlagSummary <- seedlingFlags %>%
-    select(starts_with("flag")) %>%
-    pivot_longer(cols = starts_with("flag") , names_to = 'flagType', values_to = "errorType") %>%
-    mutate(error = case_when(
+    dplyr::select(grep("(?i)flag", names(.))) %>%
+    tidyr::pivot_longer(cols = grep("(?i)flag", names(.)), names_to = 'flagType', values_to = "errorType") %>%
+    dplyr::mutate(error = dplyr::case_when(
       (errorType == 'E') ~ 1,
       TRUE ~ 0),
-      missing = case_when(
+      missing = dplyr::case_when(
         (errorType == 'M') ~ 1,
         TRUE ~ 0),
-      sample = case_when(
+      sample = dplyr::case_when(
         (errorType == 'S') ~ 1,
         TRUE ~ 0)) %>%
-    group_by(flagType) %>%
-    summarise(
+    dplyr::group_by(flagType) %>%
+    dplyr::summarise(
       totalError = sum(error),
       totalMissing = sum(missing),
       totalSample = sum(sample))
@@ -199,11 +199,11 @@ seedlingDataQC <- function(){
   folder <- "dataFlags"
   # Write csv of seedling data flags to folder
   if(file.exists(folder)) {
-    readr::write_csv(seedlingFlags, paste0(folder, "/seedlingDataFlags_", format(now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
+    readr::write_csv(seedlingFlags, paste0(folder, "/seedlingDataFlags_", format(lubridate::now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
   } else {
     # if folder doesn't exist create folder then write csv of seedling data flags
     dir.create("dataFlags")
-    readr::write_csv(seedlingFlags, paste0(folder, "/seedlingDataFlags_", format(now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
+    readr::write_csv(seedlingFlags, paste0(folder, "/seedlingDataFlags_", format(lubridate::now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
   }
 
   print(seedlingFlags)
@@ -385,24 +385,24 @@ treeDataQC <- function(){
       #~ 'E',
       is.na(speciesCode) ~ 'M',
       TRUE ~ NA)) %>%
-    # Only return rows that have a flag
-    filter(if_any(starts_with("flag"), ~ !is.na(.x)))
+    # Only return rows that have are not NA in one of the flag columns
+    dplyr::filter(dplyr::if_any(grep("(?i)flag", names(.)), ~ !is.na(.x)))
 
   # Creates a summary table of all the pine tree data quality flags
   treeFlagSummary <- treeFlags %>%
-    select(starts_with("flag")) %>%
-    pivot_longer(cols = starts_with("flag") , names_to = 'flagType', values_to = "errorType") %>%
-    mutate(error = case_when(
+    dplyr::select(grep("(?i)flag", names(.))) %>%
+    tidyr::pivot_longer(cols = grep("(?i)flag", names(.)), names_to = 'flagType', values_to = "errorType") %>%
+    dplyr::mutate(error = dplyr::case_when(
       (errorType == 'E') ~ 1,
       TRUE ~ 0),
-      missing = case_when(
+      missing = dplyr::case_when(
         (errorType == 'M') ~ 1,
         TRUE ~ 0),
-      sample = case_when(
+      sample = dplyr::case_when(
         (errorType == 'S') ~ 1,
         TRUE ~ 0)) %>%
-    group_by(flagType) %>%
-    summarise(
+    dplyr::group_by(flagType) %>%
+    dplyr::summarise(
       totalError = sum(error),
       totalMissing = sum(missing),
       totalSample = sum(sample))
@@ -412,15 +412,13 @@ treeDataQC <- function(){
   folder <- "dataFlags"
   # Write csv of tree data flags to folder
   if(file.exists(folder)) {
-    readr::write_csv(treeFlags, paste0(folder, "/treeDataFlags_", format(now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
+    readr::write_csv(treeFlags, paste0(folder, "/treeDataFlags_", format(lubridate::now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
   } else {
     # if folder doesn't exist create folder then write csv of tree data flags
     dir.create("dataFlags")
-    readr::write_csv(treeFlags, paste0(folder, "/treeDataFlags_", format(now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
+    readr::write_csv(treeFlags, paste0(folder, "/treeDataFlags_", format(lubridate::now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
   }
 
-
-  # TODO: add another tab that summarizes the flags
   print(treeFlags)
   return(treeFlags)
 
