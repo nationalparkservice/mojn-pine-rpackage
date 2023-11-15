@@ -1,92 +1,117 @@
 #' @importFrom magrittr %>%
 
-# should this be a function??
-# i'm going to make a function to QC each data table
-# i'm just adding tidyverse to the imports section and using :: to call it, should I add it to the depends
-
 # do i need to do this too?
 # rm(list=ls()) # start with a clean slate
 
-# these are the packages the original use
-# library("RODBC")
-# library("lubridate")
-# library("tidyr")
-# library("openxlsx")
-# library(tidyverse)
-# library("stringr")
-# library("distr")
-# library("dplyr")
-
-
-# Before Running any of the QC functions make sure you have run loadPine()
-
-
-# the original made the files easier to read, do i  need to do this too? like this
-# Locations$Coord_Units[Locations$Coord_Units == "m"] <- "meters"
-# Locations$PlotCorner_Primary_Ref[Locations$PlotCorner_Primary_Ref == "SW"] <- "southwest"
-# Locations$PlotCorner_Primary_Ref[Locations$PlotCorner_Primary_Ref == "NE"] <- "northeast"
-# Locations$Coord_System[Locations$Coord_System == "UTM"] <- "Universal Transverse Mercator"
-#source("R/utils.R")
+# TODO: PlotID_Number, SeedlingCount_ID, and PlotPhoto_ID are missing from query
+# TODO: should there be one QC function or should every table have its own function?
+# TODO: there's gotta be a more clear word than "domain value"
+# TODO: boleCanks_ITypes_Lower is named differently from mid and upper
+# TODO; have to call fiveneedlepine::loadPine() specifically
+# TODO: we can get rid of summmary table and might be able to get rid of exporting to excel
 
 
 #' Creates an excel spreadsheet with any data quality flags present in the pine photo table
-#' @returns description
+#' @returns table containing all of the pine photo data quality flags
 #' @export
 photoDataQC <- function() {
-  # TODO: figure out how to load in data correctly using get_data()
-  photoFlags <- get_data("Photo")
 
-  # TODO: PlotID_Number and PlotPhoto_ID seem to be misssing from query??
-  # TODO: questoion: why are we checking if eventID is NA??
-  # TODO: tbh should double check the logic (esp last one) on all the bc i just copied it from the original script
-  photoFlags <- pine$data$Photo %>%
-    dplyr::select(eventDate, park, bearing, location, cameraImageNumber, eventID) %>%
-    # If bearing not between 0 and 360, add 'E' to the bearing flagging field, if missing add 'M
-    dplyr::mutate(flagBearing = dplyr::case_when(
-      bearing < 0 | bearing > 360 ~ "E",
-      is.na(bearing) & !is.na(eventID) ~ "M",
-      TRUE ~ NA)) %>%
-    # If location reference does not match a domain value, add 'E' to the location reference flagging field, if missing add 'M'
-    # TODO: might be a smoother way to do this by referencing location categories instead of hardcoding them
-    dplyr::mutate(flagPhotoLocation = dplyr::case_when(
-      !(location %in% c('NE_Corner', 'NW_Corner', 'SE_Corner', 'SW_Corner', 'Landmark')) ~ "E",
-      is.na(location) & !is.na(eventID) ~ "M",
-      TRUE ~ NA)) %>%
-    # If Camera Image Number is missing, add 'M' to the Camera Image Number flagging field
-    dplyr::mutate(flagImageNum = dplyr::case_when(
-      is.na(cameraImageNumber) & !is.na(eventID) ~ "M",
-      TRUE ~ NA)) %>%
-    # Checks if all photos are missing
-    dplyr::mutate(flagAllPhotosMissing = dplyr::case_when(
-      is.na(eventID) ~ "M",
-      TRUE ~ NA)) %>%
+  photoFlags <- get_data("Photo")$data$Photo %>%
+    dplyr::select(locationID, eventDate, park, bearing, location, cameraImageNumber, eventID) %>%
+    # QC checks photo data and adds flags where necessary
+    dplyr::mutate(
+      # If bearing not between 0 and 360, add 'E' to the bearing flagging field, if missing add 'M
+      flagBearing = dplyr::case_when(
+        bearing < 0 | bearing > 360 ~ "E",
+        is.na(bearing) & !is.na(eventID) ~ "M",
+        TRUE ~ NA),
+      # If location reference does not match a domain value, add 'E' to the location reference flagging field, if missing add 'M'
+      # TODO: might be a smoother way to do this by referencing location categories instead of hardcoding them
+      flagPhotoLocation = dplyr::case_when(
+        !(location %in% c('NE_Corner', 'NW_Corner', 'SE_Corner', 'SW_Corner', 'Landmark')) ~ "E",
+        is.na(location) & !is.na(eventID) ~ "M",
+        TRUE ~ NA),
+      # If Camera Image Number is missing, add 'M' to the Camera Image Number flagging field
+      flagImageNum = dplyr::case_when(
+        is.na(cameraImageNumber) & !is.na(eventID) ~ "M",
+        TRUE ~ NA),
+      # Checks if all photos are missing
+      # TODO: question: why are we checking if eventID is NA?? would this ever happen
+      flagAllPhotosMissing = dplyr::case_when(
+        is.na(eventID) ~ "M",
+        TRUE ~ NA)) %>%
     # Only return rows that have a flag
-    dplyr::filter(
-      !is.na(flagAllPhotosMissing) | !is.na(flagImageNum) | !is.na(flagPhotoLocation) | !is.na(flagBearing)
-    )
+    filter(if_any(starts_with("flag"), ~ !is.na(.x)))
 
-    # TODO: should i still make an excel spreadsheet with results?
+  # TODO: is it easier to read when each check has its own mutate statement or when they're all in one mutate??
+
+    # # If location reference does not match a domain value, add 'E' to the location reference flagging field, if missing add 'M'
+    # # TODO: might be a smoother way to do this by referencing location categories instead of hardcoding them
+    # dplyr::mutate(flagPhotoLocation = dplyr::case_when(
+    #   !(location %in% c('NE_Corner', 'NW_Corner', 'SE_Corner', 'SW_Corner', 'Landmark')) ~ "E",
+    #   is.na(location) & !is.na(eventID) ~ "M",
+    #   TRUE ~ NA)) %>%
+    # # If Camera Image Number is missing, add 'M' to the Camera Image Number flagging field
+    # dplyr::mutate(flagImageNum = dplyr::case_when(
+    #   is.na(cameraImageNumber) & !is.na(eventID) ~ "M",
+    #   TRUE ~ NA)) %>%
+    # # Checks if all photos are missing
+    # dplyr::mutate(flagAllPhotosMissing = dplyr::case_when(
+    #   is.na(eventID) ~ "M",
+    #   TRUE ~ NA)) %>%
+    # # Only return rows that have a flag
+    # dplyr::filter(
+    #   !is.na(flagAllPhotosMissing) | !is.na(flagImageNum) | !is.na(flagPhotoLocation) | !is.na(flagBearing))
+
+  # Creates a table with how many flags there are for each category
+  # TODO: could also just return only rows that have an error (AKA filter out all rows that have zero errors)
+  photoFlagSummary <- photoFlags %>%
+    select(starts_with("flag")) %>%
+    pivot_longer(cols = starts_with("flag") , names_to = 'flagType', values_to = "errorType") %>%
+    mutate(error = case_when(
+        (errorType == 'E') ~ 1,
+        TRUE ~ 0),
+      missing = case_when(
+        (errorType == 'M') ~ 1,
+        TRUE ~ 0),
+      sample = case_when(
+        (errorType == 'S') ~ 1,
+        TRUE ~ 0)) %>%
+    group_by(flagType) %>%
+    summarise(
+      totalError = sum(error),
+      totalMissing = sum(missing),
+      totalSample = sum(sample))
+
+  # Data Export to Excel
+  here::here()
+  folder <- "dataFlags"
+  # Write csv of tree data flags to folder
+  if(file.exists(folder)) {
+    readr::write_csv(photoFlags, paste0(folder, "/photoDataFlags_", format(now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
+  } else {
+    # if folder doesn't exist create folder then write csv of tree data flags
+    dir.create("dataFlags")
+    readr::write_csv(photoFlags, paste0(folder, "/photoDataFlags_", format(now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
+  }
+
     print(photoFlags)
     return(photoFlags)
 
 }
 
 #' Creates an excel spreadsheet with any data quality flags present in the pine seedling table
-#' @returns description
+#' @returns table containing all the pinr seedling data quality flags
 #' @export
 seedlingDataQC <- function(){
 
-  # TODO: PlotID_Number and SeedlingCount_ID are missing from query
-  # TODO: there's gotta be a more clear word than "domain value"
-  # TODO: should i just have them all in one mutate?
-  seedlingFlags <- pine$data$Seedling %>%
+  seedlingFlags <- get_data("Seedling")$data$Seedling %>%
     dplyr::select(locationID, eventDate, subplot, speciesCode, heightClass, tag, vitality, causeOfDeath, eventID, ) %>%
     # If cause of death doesn't match a domain value, add 'E' to the death cause flagging field, if missing add 'M'
     dplyr::mutate(flagCauseOfDeath = dplyr::case_when(
       # TODO: once categories are importing correctly fix code below
-      # ~ 'E',
-      # originally it was:
       # SeedlingFlags$Flag_Death_Cause <- if_else(is.na(DataSeedlings$DeadTreeCause_Code) & !is.na(DataSeedlings$Death_Cause),"E", SeedlingFlags$Flag_Death_Cause)
+      # ~ 'E',
       is.na(causeOfDeath) & vitality == "D" ~ 'M',
       TRUE ~ NA)) %>%
     # #If the seedling is not dead, the species is not NONE and height class does not match domain values, add 'E' to the height class flagging field, if missing add 'M'
@@ -108,17 +133,19 @@ seedlingDataQC <- function(){
       # ~ 'E',
       is.na(speciesCode) ~ 'M',
       TRUE ~ NA)) %>%
-    # If status doesn't match a domain value (L, RD, D), add 'E' to the status flagging field, if missning add 'M'
+    # If status doesn't match a domain value (L, RD, D), add 'E' to the status flagging field, if missing add 'M'
     dplyr::mutate(flagVitality = dplyr::case_when(
       # TODO: once categories are imported correctly fix code below
       # SeedlingFlags$Flag_Status <- ifelse((SeedlingFlags$Status != 'L') & (SeedlingFlags$Status != 'D') & (SeedlingFlags$Status != 'RD') & !is.na(SeedlingFlags$Status),"E", SeedlingFlags$Flag_Status)
       # ~ 'E',
       (speciesCode != '_NONE' & speciesCode != '_NotSamples' & is.na(vitality)) ~ 'M',
       TRUE ~ NA)) %>%
-    #If tag is missing, add 'M' to the seedling tag flagging field
+    # If tag is missing, add 'M' to the seedling tag flagging field
     dplyr::mutate(flagTag = dplyr::case_when(
       (speciesCode != '_NONE' & speciesCode != '_NotSampled' & is.na(tag)) ~ 'M',
-      TRUE ~ NA))
+      TRUE ~ NA)) %>%
+    # Only return rows that have a flag
+    filter(if_any(starts_with("flag"), ~ !is.na(.x)))
 
 
   # TODO: check logic on this PlotID_Number no longer exists
@@ -148,243 +175,276 @@ seedlingDataQC <- function(){
           # #WHERE Count_Tot is populated, update Flag_Tag to "S"
           # SeedlingFlags$Flag_Tag <- ifelse(!is.na(SeedlingFlags$CountTot),"S", SeedlingFlags$Flag_Tag)
 
+  # Creates a summary table of how many flags there are for each category
+  seedlingFlagSummary <- seedlingFlags %>%
+    select(starts_with("flag")) %>%
+    pivot_longer(cols = starts_with("flag") , names_to = 'flagType', values_to = "errorType") %>%
+    mutate(error = case_when(
+      (errorType == 'E') ~ 1,
+      TRUE ~ 0),
+      missing = case_when(
+        (errorType == 'M') ~ 1,
+        TRUE ~ 0),
+      sample = case_when(
+        (errorType == 'S') ~ 1,
+        TRUE ~ 0)) %>%
+    group_by(flagType) %>%
+    summarise(
+      totalError = sum(error),
+      totalMissing = sum(missing),
+      totalSample = sum(sample))
+
+  # Data export to Excel
+  here::here()
+  folder <- "dataFlags"
+  # Write csv of seedling data flags to folder
+  if(file.exists(folder)) {
+    readr::write_csv(seedlingFlags, paste0(folder, "/seedlingDataFlags_", format(now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
+  } else {
+    # if folder doesn't exist create folder then write csv of seedling data flags
+    dir.create("dataFlags")
+    readr::write_csv(seedlingFlags, paste0(folder, "/seedlingDataFlags_", format(now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
+  }
 
   print(seedlingFlags)
   return(seedlingFlags)
 }
 
 #' Creates an excel spreadsheet with any data quality flags present in the pine tree table
-#' @returns description
 #' @export
 treeDataQC <- function(){
 
-  treeFlags <- pine$data$Tree %>%
-    dplyr::select()
-
-
-
-
-  TreeFlags <-DataTrees%>%
-    select(Unit_Code, PlotID_Number, Start_Date, TreeData_ID, TreeData_SubPlot_StripID, Flag_SubplotID, TreeID_Number, Flag_TreeNumber, Species_Code, Flag_Sp_Code, Clump_Number, Stem_Letter, Tag_Moved, Tag_Replaced, Tree_Status, Flag_Status, StatusDead_Cause, Flag_Death_Cause, TreeHeight_m, Flag_Tree_Ht, Mort_Year, Flag_Mort_Year, FemaleCones_YN, Cone_Count, Flag_Cone_Count, Crown_Health, Flag_Crown_Health, CrownKill_Lower_perc, Flag_Crown_Kill_Lower, CrownKill_Mid_perc, Flag_Crown_Kill_Mid, CrownKill_Upper_perc, Flag_Crown_Kill_Upper, TreeDBH_cm, Flag_TreeDBH, Stem_Letter, Flag_Stem_Letter, BoleCankers_I_Lower_YN, Flag_BoleCankers_I_Lower_YN, BoleCanks_ITypes_Lower, Flag_BoleCanks_ITypes_Lower, BoleCankers_I_Mid_YN, Flag_BoleCankers_I_Mid_YN, BoleCanks_ITypes_Mid, Flag_BoleCanks_ITypes_Mid, BoleCankers_I_Upper_YN, Flag_BoleCankers_I_Upper_YN, BoleCanks_ITypes_Upper, Flag_BoleCanks_ITypes_Upper, BranchCanks_I_Upper_YN, Flag_BranchCankers_I_Upper_YN, BranchCanks_ITypes_Upper, Flag_BranchCanks_ITypes_Upper, BranchCanks_I_Mid_YN, Flag_BranchCankers_I_Mid_YN, BranchCanks_ITypes_Mid, Flag_BranchCanks_ITypes_Mid, BranchCanks_I_Lower_YN, Flag_BranchCankers_I_Lower_YN, BranchCanks_ITypes_Lower, Flag_BranchCanks_ITypes_Lower, TreeData_Notes)
-
-
-
-  #If stem letter is not a letter, add E to stem letter flagging field
-  TreeFlags$Flag_Stem_Letter <- if_else((!grepl("^[[:alpha:]]+$", TreeFlags$Stem_Letter, FALSE)) & !is.na(TreeFlags$Stem_Letter),"E", TreeFlags$Flag_Stem_Letter)
-
-
-  #If death cause does not match domain values (tlu_DeadTree_ProbCauses), add 'E' to the death cause flagging field
-  TreeFlags$Flag_Death_Cause <- if_else((TreeFlags$StatusDead_Cause != "ANMLDMG" & TreeFlags$StatusDead_Cause != "BB_notMPB" & TreeFlags$StatusDead_Cause != "BROKSTEM" & TreeFlags$StatusDead_Cause != "CRUSH" & TreeFlags$StatusDead_Cause != "DEFOLIATE" & TreeFlags$StatusDead_Cause != "DIS_notWPBR" & TreeFlags$StatusDead_Cause != "FIRE" & TreeFlags$StatusDead_Cause != "LGHTNIN" & TreeFlags$StatusDead_Cause != "MPB" & TreeFlags$StatusDead_Cause != "MSTLTOE" & TreeFlags$StatusDead_Cause != "SUPPRESS" & TreeFlags$StatusDead_Cause != "UNKNOWN" & TreeFlags$StatusDead_Cause != "UPROOT" & TreeFlags$StatusDead_Cause != "WPBR"),"E", TreeFlags$Flag_Death_Cause)
-
-  #If death cause is missing for Dead tree records, add 'M' to the death cause flagging field
-  TreeFlags$Flag_Death_Cause <- if_else((is.na(TreeFlags$StatusDead_Cause) & TreeFlags$Tree_Status == "RD"),"M", TreeFlags$Flag_Death_Cause)
-
-  #If tree height is 999, make the field null and add "M" to height flagging field. Also add M to any fields that were already null.
-  TreeFlags$Flag_Tree_Ht <- if_else(is.na(TreeFlags$TreeHeight_m) | TreeFlags$TreeHeight_m == '999',"M", TreeFlags$Flag_Tree_Ht)
-  TreeFlags$TreeHeight_m <- if_else(TreeFlags$TreeHeight_m == '999', NA_real_,  TreeFlags$TreeHeight_m)
-
-
-
-  #If tree is recently dead, species is PIAL, and mortality year is null, add "M" to status flagging column
-  TreeFlags$Flag_Mort_Year <- if_else((TreeFlags$Tree_Status == "RD") & (TreeFlags$Species_Code == "PIAL") & is.na(TreeFlags$Mort_Year),"M", TreeFlags$Flag_Mort_Year)
-
-
-  #If cones exist but cone count is not populated, add M to cone count flag field
-  #ALTHOUGH THE ERROR COULD BE ON THE FemaleCones_YN field
-  TreeFlags$Flag_Cone_Count <- if_else((TreeFlags$FemaleCones_YN == "Y") & is.na(TreeFlags$Cone_Count),"M", TreeFlags$Flag_Cone_Count)
-
-
-  #If cones count = No but cone count is populated, add S to cone count flag field
-  #ALTHOUGH THE ERROR COULD BE ON THE FemaleCones_YN field
-  TreeFlags$Flag_Cone_Count <- if_else((TreeFlags$FemaleCones_YN == "N") & (TreeFlags$Cone_Count > 0),"S", TreeFlags$Flag_Cone_Count)
-
-
-  #If crown health doesn't equal domain values (1-5), add E to crown health flagging field
-  TreeFlags$Flag_Crown_Health <- if_else((TreeFlags$Crown_Health < 1) | (TreeFlags$Crown_Health) > 5,"E", TreeFlags$Flag_Crown_Health)
-
-  #If crown health is null for live PIAL, add M to crown health flagging field
-  TreeFlags$Flag_Crown_Health <- if_else(DataTrees$Tree_Status == "L" & DataTrees$Species_Code == "PIAL" & is.na(DataTrees$Crown_Health),"M", TreeFlags$Flag_Crown_Health)
-
-
-  #If crown kill lower is greater than 100, add E to crown kill lower flag field
-  TreeFlags$Flag_Crown_Kill_Lower <- if_else((TreeFlags$CrownKill_Lower_perc > 100),"E", TreeFlags$Flag_Crown_Kill_Lower)
-
-
-  #If crown kill mid is greater than 100, add E to crown kill mid flag field
-  TreeFlags$Flag_Crown_Kill_Mid <- if_else((TreeFlags$CrownKill_Mid_perc > 100),"E", TreeFlags$Flag_Crown_Kill_Mid)
-
-  #If tree status is L, species is PIAL, the lower crown kill percent is null, but the upper and middle crownkill percents are not null, add S to crown kill lower percent flag field
-  TreeFlags$Flag_Crown_Kill_Lower <- if_else((DataTrees$Tree_Status == "L" & DataTrees$Species_Code == "PIAL") & is.na(DataTrees$CrownKill_Lower_perc) & ( !is.na(DataTrees$CrownKill_Upper_perc) | !is.na(DataTrees$CrownKill_Mid_perc)),"S", TreeFlags$Flag_Crown_Kill_Lower)
-
-
-  #If tree status is L, species is PIAL, the middle crown kill percent is null, but the upper and lower crownkill percents are not null, add S to crown kill middle percent flag field
-  TreeFlags$Flag_Crown_Kill_Mid <- if_else((DataTrees$Tree_Status == "L" & DataTrees$Species_Code == "PIAL") & is.na(DataTrees$CrownKill_Mid_perc) & ( !is.na(DataTrees$CrownKill_Upper_perc) | !is.na(DataTrees$CrownKill_Lower_perc)),"S", TreeFlags$Flag_Crown_Kill_Mid)
-
-
-  #If crown kill upper percent is greater than 100, add E to crown kill upper flag field
-  TreeFlags$Flag_Crown_Kill_Upper <- if_else((TreeFlags$CrownKill_Upper_perc > 100),"E", TreeFlags$Flag_Crown_Kill_Upper)
-
-  #If tree status is L, species is PIAL, the upper crown kill percent is null, but the mid and lower crownkill percents are not null, add S to crown kill upper percent flag field
-  TreeFlags$Flag_Crown_Kill_Upper <- if_else((DataTrees$Tree_Status == "L" & DataTrees$Species_Code == "PIAL") & is.na(DataTrees$CrownKill_Upper_perc) & ( !is.na(DataTrees$CrownKill_Mid_perc) | !is.na(DataTrees$CrownKill_Lower_perc)),"S", TreeFlags$Flag_Crown_Kill_Upper)
-
-
-  #If DBH is greater than 200cm, add an S to the Tree DBH flag field
-  TreeFlags$Flag_TreeDBH <- if_else((TreeFlags$TreeDBH_cm > 200 & TreeFlags$TreeDBH_cm != 999),"S", TreeFlags$Flag_TreeDBH)
-
-  #If DBH is missing, add an M to the Tree DBH flag field
-  #TreeFlags$Flag_TreeDBH <- if_else(is.na(TreeFlags$TreeDBH_cm),"M", TreeFlags$Flag_TreeDBH)
-
-
-  #If tree DBH is 999, make the field null and add "M" to DBH flagging field. Also add M to any fields that were already null.
-  TreeFlags$Flag_TreeDBH <- if_else(is.na(TreeFlags$TreeDBH_cm) | TreeFlags$TreeDBH_cm == '999',"M", TreeFlags$Flag_TreeDBH)
-  TreeFlags$TreeDBH_cm <- if_else(TreeFlags$TreeDBH_cm == '999', NA_real_,  TreeFlags$TreeDBH_cm)
-
-
-  #If tree number is missing, add an M to the tree id flag field
-  TreeFlags$Flag_TreeNumber <- if_else(is.na(TreeFlags$TreeID_Number),"M", TreeFlags$Flag_TreeNumber)
-
-  #If subplotID not within range (1-5), add an M to the subplot flag field
-  TreeFlags$Flag_SubplotID <- if_else((TreeFlags$TreeData_SubPlot_StripID <1 | TreeFlags$TreeData_SubPlot_StripID >5),"E", TreeFlags$Flag_SubplotID)
-
-
-  #If subplotID is missing, add an M to the subplot flag field
-  TreeFlags$Flag_SubplotID <- if_else(is.na(TreeFlags$TreeData_SubPlot_StripID),"M", TreeFlags$Flag_SubplotID)
-
-
-
-
-  #If status doesn't match a domain value (L, D, RD), add an E to the status flag field
-  TreeFlags$Flag_Status <- if_else((TreeFlags$Tree_Status != "L" & DataTrees$Tree_Status != "D" & DataTrees$Tree_Status != "RD"),"E", TreeFlags$Flag_Status)
-
-  #If status is missing, add an M to the status flag field
-  TreeFlags$Flag_Status <- if_else(is.na(TreeFlags$Tree_Status),"M", TreeFlags$Flag_Status)
-
-
-
-
-
-
-
-
-  #If lower bole canks infestation checkbox = Yes but infestation type is null, add S to BoleCanks_ITypes_Lower flagging field
-  TreeFlags$Flag_BoleCanks_ITypes_Lower <- if_else((TreeFlags$BoleCankers_I_Lower_YN == "Y" & is.na(TreeFlags$BoleCanks_ITypes_Lower)),"S", TreeFlags$Flag_BoleCanks_ITypes_Lower)
-
-
-  #If lower bole canks infestation checkbox = No but infestation type is not null, add S to BoleCankers_I_Lower_YN flagging field
-  TreeFlags$Flag_BoleCankers_I_Lower_YN <- if_else((TreeFlags$BoleCankers_I_Lower_YN == "N" & !is.na(TreeFlags$BoleCanks_ITypes_Lower)),"S", TreeFlags$Flag_BoleCankers_I_Lower_YN)
-
-
-  #If middle bole canks infestation checkbox = Yes but infestation type is null, add S to BoleCanks_ITypes_Mid flagging field
-  TreeFlags$Flag_BoleCanks_ITypes_Mid <- if_else((TreeFlags$BoleCankers_I_Mid_YN == "Y" & is.na(TreeFlags$BoleCanks_ITypes_Mid)),"S", TreeFlags$Flag_BoleCanks_ITypes_Mid)
-
-
-  #If middle bole canks infestation checkbox = No but infestation type is not null, add S to BoleCankers_I_Mid_YN flagging field
-  TreeFlags$Flag_BoleCankers_I_Mid_YN <- if_else((TreeFlags$BoleCankers_I_Mid_YN == "N" & !is.na(TreeFlags$BoleCanks_ITypes_Mid)),"S", TreeFlags$Flag_BoleCankers_I_Mid_YN)
-
-
-  #If upper bole canks infestation checkbox = Yes but infestation type is null, add S to BoleCanks_ITypes_Upper flagging field
-  TreeFlags$Flag_BoleCanks_ITypes_Upper <- if_else((TreeFlags$BoleCankers_I_Upper_YN == "Y" & is.na(TreeFlags$BoleCanks_ITypes_Upper)),"S", TreeFlags$Flag_BoleCanks_ITypes_Upper)
-
-
-  #If upper bole canks infestation checkbox = No but infestation type is not null, add S to BoleCankers_I_Upper_YN flagging field
-  TreeFlags$Flag_BoleCankers_I_Upper_YN <- if_else((TreeFlags$BoleCankers_I_Upper_YN == "N" & !is.na(TreeFlags$BoleCanks_ITypes_Upper)),"S", TreeFlags$Flag_BoleCankers_I_Upper_YN)
-
-
-  #If lower branch canks infestation checkbox = Yes but infestation type is null, add S to BranchCanks_ITypes_Lower flagging field
-  TreeFlags$Flag_BranchCanks_ITypes_Lower <- if_else((TreeFlags$BranchCanks_I_Lower_YN == "Y" & is.na(TreeFlags$BranchCanks_ITypes_Lower)),"S", TreeFlags$Flag_BranchCanks_ITypes_Lower)
-
-
-  #If lower branch canks infestation checkbox = No but infestation type is not null, add S to BranchCanks_I_Lower_YN flagging field
-  TreeFlags$Flag_BranchCankers_I_Lower_YN <- if_else((TreeFlags$BranchCanks_I_Lower_YN == "N" & !is.na(TreeFlags$BranchCanks_ITypes_Lower)),"S", TreeFlags$Flag_BranchCankers_I_Lower_YN)
-
-
-  #If middle branch canks infestation checkbox = Yes but infestation type is null, add S to BranchCanks_ITypes_Mid flagging field
-  TreeFlags$Flag_BranchCanks_ITypes_Mid <- if_else((TreeFlags$BranchCanks_I_Mid_YN == "Y" & is.na(TreeFlags$BranchCanks_ITypes_Mid)),"S", TreeFlags$Flag_BranchCanks_ITypes_Mid)
-
-
-  #If middle branch canks infestation checkbox = No but infestation type is not null, add S to BranchCanks_I_Mid_YN flagging field
-  TreeFlags$Flag_BranchCankers_I_Mid_YN <- if_else((TreeFlags$BranchCanks_I_Mid_YN == "N" & !is.na(TreeFlags$BranchCanks_ITypes_Mid)),"S", TreeFlags$Flag_BranchCankers_I_Mid_YN)
-
-
-  #If upper branch canks infestation checkbox = Yes but infestation type is null, add S to BranchCanks_ITypes_Upper flagging field
-  TreeFlags$Flag_BranchCanks_ITypes_Upper <- if_else((TreeFlags$BranchCanks_I_Upper_YN == "Y" & is.na(TreeFlags$BranchCanks_ITypes_Upper)),"S", TreeFlags$Flag_BranchCanks_ITypes_Upper)
-
-
-  #If upper branch canks infestation checkbox = No but infestation type is not null, add S to BranchCanks_I_Upper_YN flagging field
-  TreeFlags$Flag_BranchCankers_I_Upper_YN <- if_else((TreeFlags$BranchCanks_I_Upper_YN == "N" & !is.na(TreeFlags$BranchCanks_ITypes_Upper)),"S", TreeFlags$Flag_BranchCankers_I_Upper_YN)
-
-
-  #If branch canks upper doesn't match domain values, add E to branch canks upper flagging field
-  TreeFlags$Flag_BranchCanks_ITypes_Upper <- if_else((!grepl("A|C|F|O|R|S", TreeFlags$BranchCanks_ITypes_Upper, FALSE)) & !is.na(TreeFlags$BranchCanks_ITypes_Upper),"E", TreeFlags$Flag_BranchCanks_ITypes_Upper)
-
-
-  #If branch canks mid doesn't match domain values, add E to branch canks mid flagging field
-  TreeFlags$Flag_BranchCanks_ITypes_Mid <- if_else((!grepl("A|C|F|O|R|S", TreeFlags$BranchCanks_ITypes_Mid, FALSE)) & !is.na(TreeFlags$BranchCanks_ITypes_Mid),"E", TreeFlags$Flag_BranchCanks_ITypes_Mid)
-
-
-  #If branch canks lower doesn't match domain values, add E to branch canks lower flagging field
-  TreeFlags$Flag_BranchCanks_ITypes_Lower <- if_else((!grepl("A|C|F|O|R|S", TreeFlags$BranchCanks_ITypes_Lower, FALSE)) & !is.na(TreeFlags$BranchCanks_ITypes_Lower),"E", TreeFlags$Flag_BranchCanks_ITypes_Lower)
-
-
-  #If bole canks lower doesn't match domain values, add E to bole canks lower flagging field
-  TreeFlags$Flag_BoleCanks_ITypes_Upper <- if_else((!grepl("A|C|F|O|R|S", TreeFlags$BoleCanks_ITypes_Upper, FALSE)) & !is.na(TreeFlags$BoleCanks_ITypes_Upper),"E", TreeFlags$Flag_BoleCanks_ITypes_Upper)
-
-
-  #If bole canks mid doesn't match domain values, add E to bole canks mid flagging field
-  TreeFlags$Flag_BoleCanks_ITypes_Mid <- if_else((!grepl("A|C|F|O|R|S", TreeFlags$BoleCanks_ITypes_Mid, FALSE)) & !is.na(TreeFlags$BoleCanks_ITypes_Mid),"E", TreeFlags$Flag_BoleCanks_ITypes_Mid)
-
-
-  #If bole canks lower doesn't match domain values, add E to bole canks lower flagging field
-  TreeFlags$Flag_BoleCanks_ITypes_Lower <- if_else((!grepl("A|C|F|O|R|S", TreeFlags$BoleCanks_ITypes_Lower, FALSE)) & !is.na(TreeFlags$BoleCanks_ITypes_Lower),"E", TreeFlags$Flag_BoleCanks_ITypes_Lower)
-
-
-  #If treeID number is used more than once, add S to TreeNumber flagging field
-  #Returns tree records with duplicate tags
-
-  TreeDupTag <-DataTrees%>%
-    select(Unit_Code, PlotID_Number, Start_Date, TreeID_Number)%>%
-    group_by(PlotID_Number, Start_Date, TreeID_Number)%>%
-    summarize(CountTot = dplyr::n())
-
-  TreeDupTag2 <- subset(TreeDupTag, (!is.na(TreeDupTag$TreeID_Number) & (TreeDupTag$CountTot > 1)))
-
-  #MERGE/JOIN Then remove the duplicate columns
-  TreeFlags$TreeID_Number <- as.character(TreeFlags$TreeID_Number)
-  TreeDupTag2$TreeID_Number <- as.character(TreeDupTag2$TreeID_Number)
-
-
-  TreeFlags <- full_join(x=TreeFlags,y=TreeDupTag2, by.x=c("PlotID_Number","TreeID_Number", "Start_Date"), by.y=c("PlotID_Number","TreeID_Number", "Start_Date"))
-
-  #WHERE Count_Tot is populated, update Flag_TreeNumber to "S"
-  TreeFlags$Flag_TreeNumber <- ifelse(!is.na(TreeFlags$CountTot),"S", TreeFlags$Flag_TreeNumber)
-
-  #Remove Species_Code from final table
-  TreeFlags <-TreeFlags%>%
-    select(Unit_Code, PlotID_Number, Start_Date, TreeData_ID, TreeData_SubPlot_StripID, Flag_SubplotID, TreeID_Number, Flag_TreeNumber, Species_Code, Flag_Sp_Code, Clump_Number, Stem_Letter, Tag_Moved, Tag_Replaced, Tree_Status, Flag_Status, StatusDead_Cause, Flag_Death_Cause, TreeHeight_m, Flag_Tree_Ht, Mort_Year, Flag_Mort_Year, FemaleCones_YN, Cone_Count, Flag_Cone_Count, Crown_Health, Flag_Crown_Health, CrownKill_Lower_perc, Flag_Crown_Kill_Lower, CrownKill_Mid_perc, Flag_Crown_Kill_Mid, CrownKill_Upper_perc, Flag_Crown_Kill_Upper, TreeDBH_cm, Flag_TreeDBH, Stem_Letter, Flag_Stem_Letter, BoleCankers_I_Lower_YN, Flag_BoleCankers_I_Lower_YN, BoleCanks_ITypes_Lower, Flag_BoleCanks_ITypes_Lower, BoleCankers_I_Mid_YN, Flag_BoleCankers_I_Mid_YN, BoleCanks_ITypes_Mid, Flag_BoleCanks_ITypes_Mid, BoleCankers_I_Upper_YN, Flag_BoleCankers_I_Upper_YN, BoleCanks_ITypes_Upper, Flag_BoleCanks_ITypes_Upper, BranchCanks_I_Upper_YN, Flag_BranchCankers_I_Upper_YN, BranchCanks_ITypes_Upper, Flag_BranchCanks_ITypes_Upper, BranchCanks_I_Mid_YN, Flag_BranchCankers_I_Mid_YN, BranchCanks_ITypes_Mid, Flag_BranchCanks_ITypes_Mid, BranchCanks_I_Lower_YN, Flag_BranchCankers_I_Lower_YN, BranchCanks_ITypes_Lower, Flag_BranchCanks_ITypes_Lower, TreeData_Notes, CountTot)
-
-
-  #If Species_Code doesn't match a domain value, add 'E' to the species code flagging field
-  TreeFlags$Flag_Sp_Code <- if_else(((DataTrees$Unit_Code == "CRLA" & DataTrees$Species_Code != "_NONE" & DataTrees$Species_Code != "_NotSampled" & DataTrees$Species_Code != "ABAM" & DataTrees$Species_Code != "ABCO" & DataTrees$Species_Code != "ABLA" & DataTrees$Species_Code != "ABMA" & DataTrees$Species_Code != "ABSH" & DataTrees$Species_Code != "CADE27" & DataTrees$Species_Code != "CANO9" & DataTrees$Species_Code != "DEAD" & DataTrees$Species_Code != "JUOCO" & DataTrees$Species_Code != "PIAL" & DataTrees$Species_Code != "PICOM" & DataTrees$Species_Code != "PIEN" & DataTrees$Species_Code != "PIJE" & DataTrees$Species_Code != "PILA" & DataTrees$Species_Code != "PIMO3" & DataTrees$Species_Code != "PIPOW2" & DataTrees$Species_Code != "PSMEM" & DataTrees$Species_Code != "TSHE" & DataTrees$Species_Code != "TSME" & DataTrees$Species_Code != "UNKNOWN") | (DataTrees$Unit_Code == "LAVO" & DataTrees$Species_Code != "_NONE" & DataTrees$Species_Code != "_NotSampled" & DataTrees$Species_Code != "ABAM" & DataTrees$Species_Code != "ABCO" & DataTrees$Species_Code != "ABLA" & DataTrees$Species_Code != "ABMA" & DataTrees$Species_Code != "ABSH"  & DataTrees$Species_Code != "DEAD" & DataTrees$Species_Code != "PIAL" & DataTrees$Species_Code != "PICOM" & DataTrees$Species_Code != "PIJE" & DataTrees$Species_Code != "PILA" & DataTrees$Species_Code != "PIMO3" & DataTrees$Species_Code != "PIPOW2" & DataTrees$Species_Code != "TSME" & DataTrees$Species_Code != "UNKNOWN")),"E", TreeFlags$Flag_Sp_Code)
-
-
-  #If species code is missing, add an M to the species code flag field
-  TreeFlags$Flag_Sp_Code <- if_else(is.na(TreeFlags$Species_Code),"M", TreeFlags$Flag_Sp_Code)
-
-  TreeFlags$Tree_Status[TreeFlags$Tree_Status == "L"] <- "Live"
-  TreeFlags$Tree_Status[TreeFlags$Tree_Status == "D"] <- "Dead"
-  TreeFlags$Tree_Status[TreeFlags$Tree_Status == "RD"] <- "Recently Dead"
-
-  TreeFlags$Crown_Health[TreeFlags$Crown_Health == "1"] <- "Low Risk"
-  TreeFlags$Crown_Health[TreeFlags$Crown_Health == "2"] <- "Moderate Risk"
-  TreeFlags$Crown_Health[TreeFlags$Crown_Health == "3"] <- "High Risk"
-  TreeFlags$Crown_Health[TreeFlags$Crown_Health == "4"] <- "Very High Risk"
-  TreeFlags$Crown_Health[TreeFlags$Crown_Health == "5"] <- "Dead"
-
-  TreeFlags$Tag_Moved[TreeFlags$Tag_Moved == "0"] <- "No"
-  TreeFlags$Tag_Moved[TreeFlags$Tag_Moved == "1"] <- "Yes"
-
-  TreeFlags$Tag_Replaced[TreeFlags$Tag_Replaced == "0"] <- "No"
-  TreeFlags$Tag_Replaced[TreeFlags$Tag_Replaced == "1"] <- "Yes"
-
+  treeFlags <- get_data("Tree")$data$Tree %>%
+    dplyr::select(park, locationID:treeDBH_cm, vitality, causeOfDeath, estimatedMortalityYear:crownKill_Lower_percent,
+                  branchCanks_I_Upper, branchCanks_ITypes_Upper, branchCanks_I_Mid, branchCanks_ITypes_Mid, branchCanks_I_Lower, branchCanks_ITypes_Lower,
+                  boleCankers_I_Lower, boleCanks_ITypes_Lower, boleCankers_I_Mid, boleCankers_ITypes_Mid, boleCankers_I_Upper, boleCankers_ITypes_Upper,
+                  femaleCones:treeNotes) %>%
+    #If stem letter is not a letter, add 'E' to stem letter flagging field
+    dplyr::mutate(flagStemLetter = dplyr::case_when(
+      ((!grepl("^[[:alpha:]]+$", stemLetter, FALSE)) & !is.na(stemLetter)) ~ 'E',
+      TRUE ~ NA)) %>%
+    #If death cause does not match domain values (tlu_DeadTree_ProbCauses), add 'E' to the death cause flagging field, if missing add 'M'
+    dplyr::mutate(flagCauseOfDeath = dplyr::case_when(
+      # TODO: once categories are imported correctly fix code below
+      # TreeFlags$Flag_Death_Cause <- if_else((TreeFlags$StatusDead_Cause != "ANMLDMG" & TreeFlags$StatusDead_Cause != "BB_notMPB" & TreeFlags$StatusDead_Cause != "BROKSTEM" & TreeFlags$StatusDead_Cause != "CRUSH" & TreeFlags$StatusDead_Cause != "DEFOLIATE" & TreeFlags$StatusDead_Cause != "DIS_notWPBR" & TreeFlags$StatusDead_Cause != "FIRE" & TreeFlags$StatusDead_Cause != "LGHTNIN" & TreeFlags$StatusDead_Cause != "MPB" & TreeFlags$StatusDead_Cause != "MSTLTOE" & TreeFlags$StatusDead_Cause != "SUPPRESS" & TreeFlags$StatusDead_Cause != "UNKNOWN" & TreeFlags$StatusDead_Cause != "UPROOT" & TreeFlags$StatusDead_Cause != "WPBR"),"E", TreeFlags$Flag_Death_Cause)
+      #~ 'E',
+      (is.na(causeOfDeath) & vitality == 'RD') ~ 'M',
+      TRUE ~ NA)) %>%
+    # If tree height is 999 or -999, make the field null and add "M" to height flagging field. Also add M to any fields that were already null.
+    dplyr::mutate(
+      flagTreeHeight = dplyr::case_when(
+      (is.na(treeHeight_m) | treeHeight_m == '999') ~ 'M',
+      TRUE ~ NA),
+      # If tree height is 999 or -999 make the field null
+      treeHeight_m = dplyr::case_when(
+        (treeHeight_m == '999' | treeHeight_m == '-999') ~ NA_real_,
+        .default = treeHeight_m)) %>%
+    #If tree is recently dead, species is PIAL, and mortality year is null, add "M" to status flagging column
+    dplyr::mutate(flagMortalityYear = dplyr::case_when(
+      (vitality == 'RD' & speciesCode == 'PIAL' & is.na(estimatedMortalityYear)) ~ 'M',
+      TRUE ~ NA)) %>%
+    # If cones exist but cone count is not populated, add M to cone count flag field
+    # ALTHOUGH THE ERROR COULD BE ON THE FemaleCones_YN field
+    # If cones count = No but cone count is populated, add 'S' to cone count flag field
+    dplyr::mutate(flagConeCount = dplyr::case_when(
+      (femaleCones == 'Y' & is.na(coneCount)) ~ 'M',
+      (femaleCones == 'N' & coneCount > 0) ~ 'S',
+      TRUE ~ NA)) %>%
+    # If crown health doesn't equal domain values (1-5) add E to crown health flagging field, if missing add 'M'
+    dplyr::mutate(flagCrownHealth = dplyr::case_when(
+      (crownHealth < 1 | crownHealth > 5) ~ 'E',
+      (vitality == 'L' & speciesCode == 'PIAL' & is.na(crownHealth)) ~ 'M',
+      TRUE ~ NA)) %>%
+    # If crown kill lower is greater than 100, add E to crown kill lower flag field
+    # If tree status is L, species is PIAL, the lower crown kill percent is null, but the upper and middle crownkill percents are not null, add S to crown kill lower percent flag field
+    # TODO: description says AND but original code is an OR. below is original code
+    # TreeFlags$Flag_Crown_Kill_Lower <- if_else((DataTrees$Tree_Status == "L" & DataTrees$Species_Code == "PIAL") & is.na(DataTrees$CrownKill_Lower_perc) & ( !is.na(DataTrees$CrownKill_Upper_perc) | !is.na(DataTrees$CrownKill_Mid_perc)),"S", TreeFlags$Flag_Crown_Kill_Lower)
+    # TODO: sometimes checks are based on species code 'PIAL' which looks like its specific to only two parks
+    dplyr::mutate(flagCrownKillLower = dplyr::case_when(
+      (crownKill_Lower_percent > 100) ~ "E",
+      (vitality == "L" & speciesCode == "PIAL" & is.na(crownKill_Lower_percent) & (!is.na(crownKill_Upper_percent) | !is.na(crownKill_Mid_percent))) ~"S",
+      TRUE ~ NA)) %>%
+    # If crown kill mid is greater than 100, add E to crown kill mid flag field
+    # If tree status is L, species is PIAL, the middle crown kill percent is null, but the upper and lower crownkill percents are not null, add S to crown kill middle percent flag field
+    # TODO: description says AND but original code is an OR
+    dplyr::mutate(flagCrownKillMid = dplyr::case_when(
+      (crownKill_Mid_percent > 100) ~ "E",
+      (vitality == "L" & speciesCode == "PIAL") & is.na(crownKill_Mid_percent) & (!is.na(crownKill_Upper_percent) | !is.na(crownKill_Lower_percent)) ~ "S",
+      TRUE ~ NA)) %>%
+    # If crown kill upper percent is greater than 100, add E to crown kill upper flag field
+    # TODO: description says AND but original code is an OR
+    # If tree status is L, species is PIAL, the upper crown kill percent is null, but the mid and lower crownkill percents are not null, add S to crown kill upper percent flag field
+    dplyr::mutate(flagCrownKillUpper = dplyr::case_when(
+      (crownKill_Upper_percent > 100) ~ "E",
+      (vitality == "L" & speciesCode == "PIAL") & is.na(crownKill_Upper_percent) & (!is.na(crownKill_Mid_percent) | !is.na(crownKill_Lower_percent)) ~ "S",
+      TRUE ~ NA)) %>%
+    # If DBH is greater than 200cm, add an S to the Tree DBH flag field, if missing add 'M'
+    dplyr::mutate(
+      flagTreeDBH = dplyr::case_when(
+        (treeDBH_cm > 200 & treeDBH_cm != 999) ~ "S",
+        #If tree DBH is 999, -999, or missing add 'M' to the DBH flagging field
+        (is.na(treeDBH_cm) | treeDBH_cm == 999 | treeDBH_cm == -999) ~ 'M',
+        TRUE ~ NA),
+        #If tree DBH is 999 or -999 make the field null
+      treeDBH_cm = dplyr::case_when(
+        (treeDBH_cm == 999 | treeDBH_cm == -999) ~ NA_real_,
+        .default = treeDBH_cm
+      )) %>%
+    # If tree tag is missing, add an M to the tree id flag field
+    dplyr::mutate(flagTag = dplyr::case_when(
+      is.na(tag) ~ 'M',
+      TRUE ~ NA)) %>%
+    # If subplotID not within range (1-5), add an M to the subplot flag field, if missing add 'M'
+    dplyr::mutate(flagSubplot = dplyr::case_when(
+      (subplot < 1 | subplot > 5) ~ 'E',
+      is.na(subplot) ~ 'M',
+      TRUE ~ NA)) %>%
+    # If status doesn't match a domain value (L, D, RD), add an E to the status flag field, if missing add 'M'
+    dplyr::mutate(flagVitality = dplyr::case_when(
+      # TODO: once categories table works use that instead of hardcoding it
+      (vitality != 'Live' & vitality != 'Dead' & vitality != 'Recently Dead') ~ 'E',
+      is.na(vitality) ~ 'M',
+      TRUE ~ NA)) %>%
+    # TODO: could combine into one column: ex: flag 'I' for one type and 'T' for the other type
+    # Flags for lower bowl cankers
+    dplyr::mutate(
+      # If lower bole canks infestation checkbox = Yes but infestation type is null, add S to BoleCanks_ITypes_Lower flagging field
+      flagBoleCanks_ITypes_Lower = dplyr::case_when(
+        (boleCankers_I_Lower == 'Y' & is.na(boleCanks_ITypes_Lower)) ~ 'S',
+        # If bole canks lower doesn't match domain values, add E to bole canks lower flagging field
+        (!grepl("A|C|F|O|R|S", boleCanks_ITypes_Lower, FALSE)) & !is.na(boleCanks_ITypes_Lower) ~ 'E',
+        TRUE ~ NA),
+      # If lower bole canks infestation checkbox = No but infestation type is not null, add S to BoleCankers_I_Lower_YN flagging field
+      flagBoleCanks_I_Lower = dplyr::case_when(
+        (boleCankers_I_Lower == 'N' & !is.na(boleCanks_ITypes_Lower)) ~ 'S',
+        TRUE ~ NA)) %>%
+    # Flags for middle bowl cankers
+    dplyr::mutate(
+      # If middle bole canks infestation checkbox = Yes but infestation type is null, add S to BoleCanks_ITypes_Mid flagging field
+      flagBoleCanks_ITypes_Mid = dplyr::case_when(
+        (boleCankers_I_Mid == 'Y' & is.na(boleCankers_ITypes_Mid)) ~ 'S',
+        # If bole canks mid doesn't match domain values, add E to bole canks mid flagging field
+        (!grepl("A|C|F|O|R|S", boleCankers_ITypes_Mid, FALSE)) & !is.na(boleCankers_ITypes_Mid) ~ 'E',
+        TRUE ~ NA),
+      # If middle bole canks infestation checkbox = No but infestation type is not null, add S to BoleCankers_I_Mid_YN flagging field
+      flagBoleCanks_I_Mid = dplyr::case_when(
+        (boleCankers_I_Mid == 'N' & !is.na(boleCankers_ITypes_Mid)) ~ 'S',
+        TRUE ~ NA)) %>%
+    # Flags for upper bowl cankers
+    dplyr::mutate(
+      # If upper bole canks infestation checkbox = Yes but infestation type is null, add S to BoleCanks_ITypes_Upper flagging field
+      flagBoleCanks_ITypes_Upper = dplyr::case_when(
+        (boleCankers_I_Upper == 'Y' & is.na(boleCankers_ITypes_Upper)) ~ 'S',
+        # If bole canks lower doesn't match domain values, add E to bole canks lower flagging field
+        (!grepl("A|C|F|O|R|S", boleCankers_ITypes_Upper, FALSE)) & !is.na(boleCankers_ITypes_Upper) ~ 'E',
+        TRUE ~ NA),
+      # If upper bole canks infestation checkbox = No but infestation type is not null, add S to BoleCankers_I_Upper_YN flagging field
+      flagBoleCanks_I_Upper = dplyr::case_when(
+        (boleCankers_I_Upper == 'N' & !is.na(boleCankers_ITypes_Upper)) ~ 'S',
+        TRUE ~ NA)) %>%
+    # Flags for lower branch cankers
+    dplyr::mutate(
+      # If lower branch canks infestation checkbox = Yes but infestation type is null, add S to BranchCanks_ITypes_Lower flagging field
+      flagBranchCanks_ITypes_Lower = dplyr::case_when(
+        (branchCanks_I_Lower == 'Y' & is.na(branchCanks_ITypes_Lower)) ~ 'S',
+        # If branch canks lower doesn't match domain values, add E to branch canks lower flagging field
+        (!grepl("A|C|F|O|R|S", branchCanks_ITypes_Lower, FALSE)) & !is.na(branchCanks_ITypes_Lower) ~ 'E',
+        TRUE ~ NA),
+      # If lower branch canks infestation checkbox = No but infestation type is not null, add S to BranchCanks_I_Lower_YN flagging field
+      flagBranchCanks_I_Lower = dplyr::case_when(
+        (branchCanks_I_Lower == 'N' & !is.na(branchCanks_ITypes_Lower)) ~ 'S',
+        TRUE ~ NA)) %>%
+    # Flags for middle branch cankers
+    dplyr::mutate(
+      # If middle branch canks infestation checkbox = Yes but infestation type is null, add S to BranchCanks_ITypes_Mid flagging field
+      flagBranchCanks_ITypes_Mid = dplyr::case_when(
+        (branchCanks_I_Mid == 'Y' & is.na(branchCanks_ITypes_Mid)) ~ 'S',
+        # If branch canks mid doesn't match domain values, add E to branch canks mid flagging field
+        (!grepl("A|C|F|O|R|S", branchCanks_ITypes_Mid, FALSE)) & !is.na(branchCanks_ITypes_Mid) ~ 'E',
+        TRUE ~ NA),
+      # If middle branch canks infestation checkbox = No but infestation type is not null, add S to BranchCanks_I_Mid_YN flagging field
+      flagBranchCanks_I_Mid = dplyr::case_when(
+        (branchCanks_I_Mid == 'N' & !is.na(branchCanks_ITypes_Mid)) ~ 'S',
+        TRUE ~ NA)) %>%
+    # Flags for upper branch cankers
+    dplyr::mutate(
+      # If upper branch canks infestation checkbox = Yes but infestation type is null, add S to BranchCanks_ITypes_Upper flagging field
+      flagBranchCanks_ITypes_Upper = dplyr::case_when(
+        (branchCanks_I_Upper == 'Y' & is.na(branchCanks_ITypes_Upper)) ~ 'S',
+        # If branch canks upper doesn't match domain values, add E to branch canks upper flagging field
+        (!grepl("A|C|F|O|R|S", branchCanks_ITypes_Upper, FALSE)) & !is.na(branchCanks_ITypes_Upper) ~ 'E',
+        TRUE ~ NA),
+      # If upper branch canks infestation checkbox = No but infestation type is not null, add S to BranchCanks_I_Upper_YN flagging field
+      flagBranchCanks_I_Upper = dplyr::case_when(
+        (branchCanks_I_Upper == 'N' & !is.na(branchCanks_ITypes_Upper)) ~ 'S',
+        TRUE ~ NA)) %>%
+    # If Species_Code doesn't match a domain value, add 'E' to the species code flagging field, if missing add 'M'
+    dplyr::mutate(flagSpeciesCode = dplyr::case_when(
+      # TODO: once categories metadata is imported correctly fix the code below
+      # TreeFlags$Flag_Sp_Code <- if_else(((DataTrees$Unit_Code == "CRLA" & DataTrees$Species_Code != "_NONE" & DataTrees$Species_Code != "_NotSampled" & DataTrees$Species_Code != "ABAM" & DataTrees$Species_Code != "ABCO" & DataTrees$Species_Code != "ABLA" & DataTrees$Species_Code != "ABMA" & DataTrees$Species_Code != "ABSH" & DataTrees$Species_Code != "CADE27" & DataTrees$Species_Code != "CANO9" & DataTrees$Species_Code != "DEAD" & DataTrees$Species_Code != "JUOCO" & DataTrees$Species_Code != "PIAL" & DataTrees$Species_Code != "PICOM" & DataTrees$Species_Code != "PIEN" & DataTrees$Species_Code != "PIJE" & DataTrees$Species_Code != "PILA" & DataTrees$Species_Code != "PIMO3" & DataTrees$Species_Code != "PIPOW2" & DataTrees$Species_Code != "PSMEM" & DataTrees$Species_Code != "TSHE" & DataTrees$Species_Code != "TSME" & DataTrees$Species_Code != "UNKNOWN") | (DataTrees$Unit_Code == "LAVO" & DataTrees$Species_Code != "_NONE" & DataTrees$Species_Code != "_NotSampled" & DataTrees$Species_Code != "ABAM" & DataTrees$Species_Code != "ABCO" & DataTrees$Species_Code != "ABLA" & DataTrees$Species_Code != "ABMA" & DataTrees$Species_Code != "ABSH"  & DataTrees$Species_Code != "DEAD" & DataTrees$Species_Code != "PIAL" & DataTrees$Species_Code != "PICOM" & DataTrees$Species_Code != "PIJE" & DataTrees$Species_Code != "PILA" & DataTrees$Species_Code != "PIMO3" & DataTrees$Species_Code != "PIPOW2" & DataTrees$Species_Code != "TSME" & DataTrees$Species_Code != "UNKNOWN")),"E", TreeFlags$Flag_Sp_Code)
+      #~ 'E',
+      is.na(speciesCode) ~ 'M',
+      TRUE ~ NA)) %>%
+    # Only return rows that have a flag
+    filter(if_any(starts_with("flag"), ~ !is.na(.x)))
+
+  # Creates a summary table of all the pine tree data quality flags
+  treeFlagSummary <- treeFlags %>%
+    select(starts_with("flag")) %>%
+    pivot_longer(cols = starts_with("flag") , names_to = 'flagType', values_to = "errorType") %>%
+    mutate(error = case_when(
+      (errorType == 'E') ~ 1,
+      TRUE ~ 0),
+      missing = case_when(
+        (errorType == 'M') ~ 1,
+        TRUE ~ 0),
+      sample = case_when(
+        (errorType == 'S') ~ 1,
+        TRUE ~ 0)) %>%
+    group_by(flagType) %>%
+    summarise(
+      totalError = sum(error),
+      totalMissing = sum(missing),
+      totalSample = sum(sample))
+
+  # Data export to Excel
+  here::here()
+  folder <- "dataFlags"
+  # Write csv of tree data flags to folder
+  if(file.exists(folder)) {
+    readr::write_csv(treeFlags, paste0(folder, "/treeDataFlags_", format(now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
+  } else {
+    # if folder doesn't exist create folder then write csv of tree data flags
+    dir.create("dataFlags")
+    readr::write_csv(treeFlags, paste0(folder, "/treeDataFlags_", format(now(), "%Y%m%d_%H%M%S"),".csv"), na = "")
+  }
+
+
+  # TODO: add another tab that summarizes the flags
+  print(treeFlags)
+  return(treeFlags)
+
+
+
+  # TODO: finish adding this part
+  # #If treeID number is used more than once, add S to TreeNumber flagging field
+  # #Returns tree records with duplicate tags
+  #
+  # TreeDupTag <-DataTrees%>%
+  #   select(Unit_Code, PlotID_Number, Start_Date, TreeID_Number) %>%
+  #   group_by(PlotID_Number, Start_Date, TreeID_Number)%>%
+  #   summarize(CountTot = dplyr::n())
+  #
+  # TreeDupTag2 <- subset(TreeDupTag, (!is.na(TreeDupTag$TreeID_Number) & (TreeDupTag$CountTot > 1)))
+  #
+  # #MERGE/JOIN Then remove the duplicate columns
+  # TreeFlags$TreeID_Number <- as.character(TreeFlags$TreeID_Number)
+  # TreeDupTag2$TreeID_Number <- as.character(TreeDupTag2$TreeID_Number)
+  #
+  #
+  # TreeFlags <- full_join(x=TreeFlags,y=TreeDupTag2, by.x=c("PlotID_Number","TreeID_Number", "Start_Date"), by.y=c("PlotID_Number","TreeID_Number", "Start_Date"))
+  #
+  # #WHERE Count_Tot is populated, update Flag_TreeNumber to "S"
+  # TreeFlags$Flag_TreeNumber <- ifelse(!is.na(TreeFlags$CountTot),"S", TreeFlags$Flag_TreeNumber)
 }
 
