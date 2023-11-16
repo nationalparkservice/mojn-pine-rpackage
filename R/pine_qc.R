@@ -1,22 +1,69 @@
-#' @importFrom magrittr %>%
 
-# do i need to do this too?
+
+# TODO: do i need to do this too?
 # rm(list=ls()) # start with a clean slate
 
 # TODO: PlotID_Number, SeedlingCount_ID, and PlotPhoto_ID are missing from query
-# TODO: there's gotta be a more clear word than "domain value"
 # TODO: boleCanks_ITypes_Lower is named differently from mid and upper
 # TODO: we can get rid of summmary table and might be able to get rid of exporting to excel
-#
+# TODO: should we restructure into more smaller functions??
+# TODO: if something is commented out from FNP_Validation_20211110.R I didn't include it
+# TODO: some checks had vitality != 'M', but that's not a category in the lookup table
 
+
+
+#' Returns any events with no photo, seedling, and/or tree data
+#' @returns table containing all of the pine event data quality flags
+#' @export
+eventDataQC <- function(){
+
+  eventFlags <- get_data("Visit")$data$Visit %>%
+    dplyr::select(locationID, eventID) %>%
+    # Join with photo tables
+    dplyr::full_join(get_data("Photo")$data$Photo, by = c('eventID', 'locationID')) %>%
+    dplyr::group_by(eventID) %>%
+    dplyr::summarise(photoCount = dplyr::n()) %>%
+    # Flag any events that have no corresponding photos
+    dplyr::mutate(flagNoPhotos = dplyr::case_when(
+      (photoCount == 0 | photoCount == NA) ~ 'E',
+      TRUE ~ NA)) %>%
+    # Join with seedling data
+    dplyr::full_join(get_data("Seedling")$data$Seedling, by = c('eventID')) %>%
+    dplyr::group_by(eventID, photoCount, flagNoPhotos) %>%
+    dplyr::summarise(seedlingCount = dplyr::n()) %>%
+    # Flag any events with no corresponding seedling data
+    dplyr::mutate(flagNoSeedlings = dplyr::case_when(
+      (seedlingCount == 0 | seedlingCount == NA) ~ 'E',
+      TRUE ~ NA)) %>%
+    # Join with tree data
+    dplyr::full_join(get_data("Tree")$data$Tree, by = c('eventID')) %>%
+    dplyr::group_by(eventID, photoCount, flagNoPhotos, seedlingCount, flagNoSeedlings, locationID, eventDate) %>%
+    dplyr::summarise(treeCount = dplyr::n()) %>%
+    # Flag any events with no corresponding tree data
+    dplyr::mutate(flagNoTrees = dplyr::case_when(
+      (treeCount == 0 | treeCount == NA) ~ 'E',
+      TRUE ~ NA)) %>%
+    # Only return rows that are not NA in one of the flag columns
+    dplyr::filter(dplyr::if_any(contains("flag"), ~ !is.na(.x)))
+    # dplyr::filter(dplyr::if_any(grep("(?i)flag", names(.)), ~ !is.na(.x)))
+
+  print(eventFlags)
+  return(eventFlags)
+}
 
 #' Creates an excel spreadsheet with any data quality flags present in the pine photo table
 #' @returns table containing all of the pine photo data quality flags
 #' @export
 photoDataQC <- function() {
 
-  here::here()
-  source("R/utils.R")
+  # here::here()
+  # source("R/utils.R")
+
+  # Returns events where there are less than 4 photos
+  countPhotos <- pine$data$Photo %>%
+    dplyr::group_by(locationID, eventDate) %>%
+    dplyr::summarize(countPhotos = dplyr::n())
+
   photoFlags <- get_data("Photo")$data$Photo %>%
     dplyr::select(locationID, eventDate, park, bearing, location, cameraImageNumber, eventID) %>%
     # QC checks photo data and adds flags where necessary
@@ -25,43 +72,29 @@ photoDataQC <- function() {
       flagBearing = dplyr::case_when(
         bearing < 0 | bearing > 360 ~ "E",
         is.na(bearing) & !is.na(eventID) ~ "M",
-        TRUE ~ NA),
-      # If location reference does not match a domain value, add 'E' to the location reference flagging field, if missing add 'M'
-      # TODO: might be a smoother way to do this by referencing location categories instead of hardcoding them
-      flagPhotoLocation = dplyr::case_when(
-        !(location %in% c('NE_Corner', 'NW_Corner', 'SE_Corner', 'SW_Corner', 'Landmark')) ~ "E",
-        is.na(location) & !is.na(eventID) ~ "M",
-        TRUE ~ NA),
-      # If Camera Image Number is missing, add 'M' to the Camera Image Number flagging field
-      flagImageNum = dplyr::case_when(
-        is.na(cameraImageNumber) & !is.na(eventID) ~ "M",
-        TRUE ~ NA),
-      # Checks if all photos are missing
-      # TODO: question: why are we checking if eventID is NA?? would this ever happen
-      flagAllPhotosMissing = dplyr::case_when(
-        is.na(eventID) ~ "M",
         TRUE ~ NA)) %>%
+    # Join photos table with table that has fewer than 4 photos
+    dplyr::full_join(countPhotos, by = c('locationID', 'eventDate')) %>%
+    # If a event has less than 4 photos add 'E' to photo count flag
+    dplyr::mutate(flagPhotoCount = dplyr::case_when(
+      countPhotos < 4 ~ 'E',
+      TRUE ~ NA)) %>%
+    # If location reference does not match a domain value, add 'E' to the location reference flagging field, if missing add 'M'
+    # TODO: might be a smoother way to do this by referencing location categories instead of hardcoding them
+    dplyr::mutate(flagPhotoLocation = dplyr::case_when(
+      !(location %in% c('NE_Corner', 'NW_Corner', 'SE_Corner', 'SW_Corner', 'Landmark')) ~ "E",
+      is.na(location) & !is.na(eventID) ~ "M",
+      TRUE ~ NA)) %>%
+    # If Camera Image Number is missing, add 'M' to the Camera Image Number flagging field
+    dplyr::mutate(flagImageNum = dplyr::case_when(
+      is.na(cameraImageNumber) & !is.na(eventID) ~ "M",
+      TRUE ~ NA)) %>%
+    # Checks if all photos are missing
+    dplyr::mutate(flagAllPhotosMissing = dplyr::case_when(
+      is.na(eventID) ~ "M",
+      TRUE ~ NA)) %>%
     # Only return rows that are not NA in one of the flag columns
     dplyr::filter(dplyr::if_any(grep("(?i)flag", names(.)), ~ !is.na(.x)))
-
-  # TODO: is it easier to read when each check has its own mutate statement or when they're all in one mutate??
-#
-#     # # If location reference does not match a domain value, add 'E' to the location reference flagging field, if missing add 'M'
-#     # TODO: might be a smoother way to do this by referencing location categories instead of hardcoding them
-#     dplyr::mutate(flagPhotoLocation = dplyr::case_when(
-#       !(location %in% c('NE_Corner', 'NW_Corner', 'SE_Corner', 'SW_Corner', 'Landmark')) ~ "E",
-#       is.na(location) & !is.na(eventID) ~ "M",
-#       TRUE ~ NA)) %>%
-#     # If Camera Image Number is missing, add 'M' to the Camera Image Number flagging field
-#     dplyr::mutate(flagImageNum = dplyr::case_when(
-#       is.na(cameraImageNumber) & !is.na(eventID) ~ "M",
-#       TRUE ~ NA)) %>%
-#     # Checks if all photos are missing
-#     dplyr::mutate(flagAllPhotosMissing = dplyr::case_when(
-#       is.na(eventID) ~ "M",
-#       TRUE ~ NA)) %>%
-#     # Only return rows that have a flag
-#       dplyr::filter(dplyr::if_any(starts_with("flag"), ~ !is.na(.x)))
 
   # Creates a table with how many flags there are for each category
   # TODO: could also just return only rows that have an error (AKA filter out all rows that have zero errors)
@@ -104,9 +137,30 @@ photoDataQC <- function() {
 #' @returns table containing all the pinr seedling data quality flags
 #' @export
 seedlingDataQC <- function(){
+  # Returns seedling records with duplicate tags
+  seedlingDuplicateTag <- get_data("Seedling")$data$Seedling %>%
+    #select(park, locationID, eventDate, tag) %>%
+    dplyr::group_by(locationID, eventDate, tag) %>%
+    dplyr::summarize(countTotal = dplyr::n()) %>%
+    dplyr::filter(!is.na(tag) & countTotal > 1)
+
+  # TODO: figure out what to do with this check
+  # since there's a group by when it gets joined to the normal table all the rows that were grouped get an error
+  numOfSubplots <- seedling %>%
+    group_by(locationID, eventDate) %>%
+    summarize(numSubplots = dplyr::n()) %>%
+    filter(numSubplots != 9)
+
 
   seedlingFlags <- get_data("Seedling")$data$Seedling %>%
     dplyr::select(locationID, eventDate, subplot, speciesCode, heightClass, tag, vitality, causeOfDeath, eventID, ) %>%
+    # Join seedling data with duplicate tags
+    dplyr::full_join(seedlingDuplicateTag, by = c('locationID', 'eventDate', 'tag')) %>%
+    # If a tag number is used more than once, add S to tag flagging field, if missing add 'M'
+    dplyr::mutate(flagTag = dplyr::case_when(
+      !is.na(countTotal) ~ 'S',
+      (speciesCode != '_NONE' & speciesCode != '_NotSampled' & is.na(tag)) ~ 'M',
+      TRUE ~ NA)) %>%
     # If cause of death doesn't match a domain value, add 'E' to the death cause flagging field, if missing add 'M'
     dplyr::mutate(flagCauseOfDeath = dplyr::case_when(
       # TODO: once categories are importing correctly fix code below
@@ -140,40 +194,15 @@ seedlingDataQC <- function(){
       # ~ 'E',
       (speciesCode != '_NONE' & speciesCode != '_NotSamples' & is.na(vitality)) ~ 'M',
       TRUE ~ NA)) %>%
-    # If tag is missing, add 'M' to the seedling tag flagging field
-    dplyr::mutate(flagTag = dplyr::case_when(
-      (speciesCode != '_NONE' & speciesCode != '_NotSampled' & is.na(tag)) ~ 'M',
+    # Join seedling data with visits that don't have 9 subplots data
+    dplyr::full_join(numOfSubplots, by = c('locationID', 'eventDate')) %>%
+    # If there are not 9 seedling subplots for an event add 'E' to the subplot number flag
+    dplyr::mutate(flagSubplotNumber = dplyr::case_when(
+      (numSubplots != 9) ~ 'E',
       TRUE ~ NA)) %>%
     # Only return rows that have are not NA in one of the flag columns
     dplyr::filter(dplyr::if_any(grep("(?i)flag", names(.)), ~ !is.na(.x)))
 
-
-  # TODO: check logic on this PlotID_Number no longer exists
-  # also why are all the tags with count > 1 NA???
-  # duplicateTag <- pine$data$Seedling %>%
-  #   group_by(park, eventDate, tag) %>%
-  #   summarize(count = dplyr::n()) %>%
-  #   filter(!is.na(tag) & count > 1)
-
-    # TODO: finish updating this
-          # #Returns seedling records with duplicate tags
-          #
-          # SeedDupTag <-DataSeedlings%>%
-          #   select(Unit_Code, PlotID_Number, Start_Date, SeedlingTag)%>%
-          #   group_by(PlotID_Number, Start_Date, SeedlingTag)%>%
-          #   summarize(CountTot = dplyr::n())
-          #
-          # SeedDupTag2 <- subset(SeedDupTag, (!is.na(SeedDupTag$SeedlingTag) & (SeedDupTag$CountTot > 1)))
-          #
-          # #MERGE/JOIN Then remove the duplicate columns
-          # SeedlingFlags$SeedlingTag <- as.character(SeedlingFlags$SeedlingTag)
-          # SeedDupTag2$SeedlingTag <- as.character(SeedDupTag2$SeedlingTag)
-          #
-          #
-          # SeedlingFlags <- full_join(x=SeedlingFlags,y=SeedDupTag2, by.x=c("PlotID_Number","SeedlingTag", "Start_Date"), by.y=c("PlotID_Number","SeedlingTag", "Start_Date"))
-          #
-          # #WHERE Count_Tot is populated, update Flag_Tag to "S"
-          # SeedlingFlags$Flag_Tag <- ifelse(!is.na(SeedlingFlags$CountTot),"S", SeedlingFlags$Flag_Tag)
 
   # Creates a summary table of how many flags there are for each category
   seedlingFlagSummary <- seedlingFlags %>%
@@ -211,14 +240,30 @@ seedlingDataQC <- function(){
 }
 
 #' Creates an excel spreadsheet with any data quality flags present in the pine tree table
+#' @returns table containing all of the pine tree data quality flags
 #' @export
 treeDataQC <- function(){
+  # Returns tree records with duplicate tags
+  # TODO: in the original QC script it groups by eventData but in the validation script it doesn't
+  treeDuplicateTag <- get_data("Tree")$data$Tree %>%
+    #dplyr::select(park, locationID, eventDate, tag) %>%
+    dplyr::group_by(locationID, eventDate, tag)%>%
+    dplyr::summarize(countTotal = dplyr::n()) %>%
+    dplyr::filter(!is.na(tag) & countTotal > 1)
+
 
   treeFlags <- get_data("Tree")$data$Tree %>%
     dplyr::select(park, locationID:treeDBH_cm, vitality, causeOfDeath, estimatedMortalityYear:crownKill_Lower_percent,
                   branchCanks_I_Upper, branchCanks_ITypes_Upper, branchCanks_I_Mid, branchCanks_ITypes_Mid, branchCanks_I_Lower, branchCanks_ITypes_Lower,
                   boleCankers_I_Lower, boleCanks_ITypes_Lower, boleCankers_I_Mid, boleCankers_ITypes_Mid, boleCankers_I_Upper, boleCankers_ITypes_Upper,
                   femaleCones:treeNotes) %>%
+    # Join tree data with the duplicate tag table
+    dplyr::full_join(treeDuplicateTag, by = c('locationID', 'eventDate', 'tag')) %>%
+    # If a tag number is used more than once, add S to tag flagging field, if missing add 'M'
+    dplyr::mutate(flagTag = dplyr::case_when(
+      !is.na(countTotal) ~ 'S',
+      is.na(tag) ~ 'M',
+      TRUE ~ NA)) %>%
     #If stem letter is not a letter, add 'E' to stem letter flagging field
     dplyr::mutate(flagStemLetter = dplyr::case_when(
       ((!grepl("^[[:alpha:]]+$", stemLetter, FALSE)) & !is.na(stemLetter)) ~ 'E',
@@ -230,14 +275,16 @@ treeDataQC <- function(){
       #~ 'E',
       (is.na(causeOfDeath) & vitality == 'RD') ~ 'M',
       TRUE ~ NA)) %>%
+    # If the tree is not dead and greater than 50 m tall add an 'E' to the height flagging field
     # If tree height is 999 or -999, make the field null and add "M" to height flagging field. Also add M to any fields that were already null.
     dplyr::mutate(
       flagTreeHeight = dplyr::case_when(
-      (is.na(treeHeight_m) | treeHeight_m == '999') ~ 'M',
+      (vitality != 'D' & (treeHeight_m > 50 & treeHeight_m != 999)) ~ 'E',
+      (is.na(treeHeight_m) | treeHeight_m == 999 | treeHeight_m == -999) ~ 'M',
       TRUE ~ NA),
-      # If tree height is 999 or -999 make the field null
+      # If tree height is 999 or -999 make the height null
       treeHeight_m = dplyr::case_when(
-        (treeHeight_m == '999' | treeHeight_m == '-999') ~ NA_real_,
+        (treeHeight_m == 999 | treeHeight_m == -999) ~ NA_real_,
         .default = treeHeight_m)) %>%
     #If tree is recently dead, species is PIAL, and mortality year is null, add "M" to status flagging column
     dplyr::mutate(flagMortalityYear = dplyr::case_when(
@@ -246,34 +293,38 @@ treeDataQC <- function(){
     # If cones exist but cone count is not populated, add M to cone count flag field
     # ALTHOUGH THE ERROR COULD BE ON THE FemaleCones_YN field
     # If cones count = No but cone count is populated, add 'S' to cone count flag field
-    dplyr::mutate(flagConeCount = dplyr::case_when(
-      (femaleCones == 'Y' & is.na(coneCount)) ~ 'M',
-      (femaleCones == 'N' & coneCount > 0) ~ 'S',
-      TRUE ~ NA)) %>%
+    dplyr::mutate(
+      flagConeCount = dplyr::case_when(
+        (femaleCones == 'Y' & is.na(coneCount)) ~ 'M',
+        (femaleCones == 'N' & coneCount > 0) ~ 'S',
+        TRUE ~ NA),
+      # TODO: this is some data cleaning that could probably go in a separate file
+      femaleCones = dplyr::case_when(
+        (femaleCones == 'ND') ~ NA,
+        .default = femaleCones),
+      # TODO: this is some data cleaning that could probably go in a separate file
+      coneCount = dplyr::case_when(
+        (coneCount == -999 | coneCount == 999) ~ NA,
+        .default = coneCount)) %>%
     # If crown health doesn't equal domain values (1-5) add E to crown health flagging field, if missing add 'M'
     dplyr::mutate(flagCrownHealth = dplyr::case_when(
       (crownHealth < 1 | crownHealth > 5) ~ 'E',
       (vitality == 'L' & speciesCode == 'PIAL' & is.na(crownHealth)) ~ 'M',
       TRUE ~ NA)) %>%
     # If crown kill lower is greater than 100, add E to crown kill lower flag field
-    # If tree status is L, species is PIAL, the lower crown kill percent is null, but the upper and middle crownkill percents are not null, add S to crown kill lower percent flag field
-    # TODO: description says AND but original code is an OR. below is original code
-    # TreeFlags$Flag_Crown_Kill_Lower <- if_else((DataTrees$Tree_Status == "L" & DataTrees$Species_Code == "PIAL") & is.na(DataTrees$CrownKill_Lower_perc) & ( !is.na(DataTrees$CrownKill_Upper_perc) | !is.na(DataTrees$CrownKill_Mid_perc)),"S", TreeFlags$Flag_Crown_Kill_Lower)
-    # TODO: sometimes checks are based on species code 'PIAL' which looks like its specific to only two parks
+    # If tree status is L, species is PIAL, the lower crown kill percent is null, but the upper or middle crownkill percents are not null, add S to crown kill lower percent flag field
     dplyr::mutate(flagCrownKillLower = dplyr::case_when(
       (crownKill_Lower_percent > 100) ~ "E",
       (vitality == "L" & speciesCode == "PIAL" & is.na(crownKill_Lower_percent) & (!is.na(crownKill_Upper_percent) | !is.na(crownKill_Mid_percent))) ~"S",
       TRUE ~ NA)) %>%
     # If crown kill mid is greater than 100, add E to crown kill mid flag field
-    # If tree status is L, species is PIAL, the middle crown kill percent is null, but the upper and lower crownkill percents are not null, add S to crown kill middle percent flag field
-    # TODO: description says AND but original code is an OR
+    # If tree status is L, species is PIAL, the middle crown kill percent is null, but the upper or lower crownkill percents are not null, add S to crown kill middle percent flag field
     dplyr::mutate(flagCrownKillMid = dplyr::case_when(
       (crownKill_Mid_percent > 100) ~ "E",
       (vitality == "L" & speciesCode == "PIAL") & is.na(crownKill_Mid_percent) & (!is.na(crownKill_Upper_percent) | !is.na(crownKill_Lower_percent)) ~ "S",
       TRUE ~ NA)) %>%
     # If crown kill upper percent is greater than 100, add E to crown kill upper flag field
-    # TODO: description says AND but original code is an OR
-    # If tree status is L, species is PIAL, the upper crown kill percent is null, but the mid and lower crownkill percents are not null, add S to crown kill upper percent flag field
+    # If tree status is L, species is PIAL, the upper crown kill percent is null, but the mid or lower crownkill percents are not null, add S to crown kill upper percent flag field
     dplyr::mutate(flagCrownKillUpper = dplyr::case_when(
       (crownKill_Upper_percent > 100) ~ "E",
       (vitality == "L" & speciesCode == "PIAL") & is.na(crownKill_Upper_percent) & (!is.na(crownKill_Mid_percent) | !is.na(crownKill_Lower_percent)) ~ "S",
@@ -290,10 +341,6 @@ treeDataQC <- function(){
         (treeDBH_cm == 999 | treeDBH_cm == -999) ~ NA_real_,
         .default = treeDBH_cm
       )) %>%
-    # If tree tag is missing, add an M to the tree id flag field
-    dplyr::mutate(flagTag = dplyr::case_when(
-      is.na(tag) ~ 'M',
-      TRUE ~ NA)) %>%
     # If subplotID not within range (1-5), add an M to the subplot flag field, if missing add 'M'
     dplyr::mutate(flagSubplot = dplyr::case_when(
       (subplot < 1 | subplot > 5) ~ 'E',
@@ -306,7 +353,7 @@ treeDataQC <- function(){
       is.na(vitality) ~ 'M',
       TRUE ~ NA)) %>%
     # TODO: could combine into one column: ex: flag 'I' for one type and 'T' for the other type
-    # Flags for lower bowl cankers
+    # Flags for lower bole cankers
     dplyr::mutate(
       # If lower bole canks infestation checkbox = Yes but infestation type is null, add S to BoleCanks_ITypes_Lower flagging field
       flagBoleCanks_ITypes_Lower = dplyr::case_when(
@@ -421,28 +468,5 @@ treeDataQC <- function(){
 
   print(treeFlags)
   return(treeFlags)
-
-
-
-  # TODO: finish adding this part
-  # #If treeID number is used more than once, add S to TreeNumber flagging field
-  # #Returns tree records with duplicate tags
-  #
-  # TreeDupTag <-DataTrees%>%
-  #   select(Unit_Code, PlotID_Number, Start_Date, TreeID_Number) %>%
-  #   group_by(PlotID_Number, Start_Date, TreeID_Number)%>%
-  #   summarize(CountTot = dplyr::n())
-  #
-  # TreeDupTag2 <- subset(TreeDupTag, (!is.na(TreeDupTag$TreeID_Number) & (TreeDupTag$CountTot > 1)))
-  #
-  # #MERGE/JOIN Then remove the duplicate columns
-  # TreeFlags$TreeID_Number <- as.character(TreeFlags$TreeID_Number)
-  # TreeDupTag2$TreeID_Number <- as.character(TreeDupTag2$TreeID_Number)
-  #
-  #
-  # TreeFlags <- full_join(x=TreeFlags,y=TreeDupTag2, by.x=c("PlotID_Number","TreeID_Number", "Start_Date"), by.y=c("PlotID_Number","TreeID_Number", "Start_Date"))
-  #
-  # #WHERE Count_Tot is populated, update Flag_TreeNumber to "S"
-  # TreeFlags$Flag_TreeNumber <- ifelse(!is.na(TreeFlags$CountTot),"S", TreeFlags$Flag_TreeNumber)
 }
 
