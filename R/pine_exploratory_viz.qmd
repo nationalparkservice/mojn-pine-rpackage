@@ -1,0 +1,174 @@
+---
+title: "Pine Exploratory Viz"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+```{r}
+library(leaflet)
+library(tidyverse)
+library(fiveneedlepine)
+library(plotly)
+library(lubridate)
+library(RColorBrewer)
+library(QCkit)
+library(sp)
+library(raster)
+library(terra)
+```
+
+```{r}
+data_dir = here::here("data")
+pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
+```
+
+```{r}
+# ggplot graph of seedling species by year
+seedling <- pine$data$Seedling
+
+seedlingSpecs <- seedling %>%
+  ggplot(aes(x = year(as_datetime(eventDate)))) + 
+  geom_bar(aes( fill = factor(speciesCode))) +
+  theme_minimal() + 
+  labs(title = "Seedling Species by Year",
+       x = "Year", y = "Count",
+       fill = "Species Code") + 
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  scale_fill_brewer(palette="Accent")
+  
+
+seedlingSpecs
+
+# ggplot converted into plotly graph
+ggplotly(seedlingSpecs)
+```
+
+```{r}
+# Seedling Species by Year as Plotly Graph
+# TODO: this didn't work out correctly, might be easier to just wrangle data and then graph it
+plot_ly(seedling, x = ~year(as_datetime(eventDate)), type = 'bar', color = ~factor(speciesCode)) %>%
+  layout(barmode = 'stack')
+```
+
+```{r}
+# Data wrangling to create percent of species for each UTM Northing
+tree_pct <- pine$data$Tree %>%
+  select(locationID, eventID, speciesCode) %>%
+  full_join(pine$data$Site, by = "locationID") %>%
+  select(locationID, eventID, speciesCode, primaryCornerYCoord) %>%
+  group_by(primaryCornerYCoord, speciesCode) %>%
+  summarize(speciesCount = n()) %>%
+  group_by(primaryCornerYCoord) %>%
+  mutate(percent = speciesCount/sum(speciesCount)*100)
+```
+
+```{r}
+# Tree status by Year
+
+
+# have to join tree with site to get latitude
+tree_pct_plot <- tree_pct %>%
+  ggplot(aes(x = factor(primaryCornerYCoord))) +
+  geom_bar(aes(y = percent, fill = factor(speciesCode)), stat = "identity", postion = "stack") + 
+  theme_minimal() + 
+  labs(title = "Tree Species by Latitude",
+       x = "UTM Northing", y = "Percent",
+       fill = "Species Code") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+
+tree_pct_plot
+
+# TODO: could add count in the popup when you mouse over a section of the graph
+ggplotly(tree_pct_plot)
+```
+
+```{r}
+sitesSplit <- pine$data$Site %>%
+  # Remove any letters from UTM Zone so it's just the zone number
+  mutate(UTM_Zone = str_extract(UTM_Zone, "[0-9]*")) %>%
+  split(sitesData$UTM_Zone)
+  
+  zdll = lapply(sitesSplit, 
+    function(zd){
+      coordinates(zd)=~Longitude+Latitude
+      proj4string(zd)=paste0("+init=epsg:326",zd$zone[1])
+      spTransform(zd, CRS("+init=epsg:4326"))
+     })
+  
+```
+
+
+
+```{r}
+# Created longitude and latitude from UTM zones
+# TODO: you have to hard code the UTM zone :( find workaround
+sitesData <- pine$data$Site %>%
+  QCkit::convert_utm_to_ll(EastingCol = "primaryCornerXCoord",
+                    NorthingCol = "primaryCornerYCoord",
+                    zone = "11",
+                    datum = "NAD83")
+
+
+sitesData <- pine$data$Site %>%
+  rename(lat = primaryCornerXCoord) %>%
+  rename(lng = primaryCornerYCoord)
+
+sites <- leaflet() %>%
+  addTiles() %>%
+  setView(lng = -117, lat = 36.5, zoom = 6.5) %>%
+  #purrr::map(addMarkers(lat = pine$data$Site$primaryCornerXCoord, lng = pine$data$Site$primaryCornerYCoord))
+  addMarkers(data=sitesData) %>%
+  addMarkers(lng = -3.7, lat = 40.4)
+```
+
+```{r}
+# sites
+```
+
+```{r}
+# species by elevation
+```
+
+<!-- ```{ojs} -->
+
+<!-- //| echo: false -->
+
+<!-- //| eval: true  -->
+
+<!-- YOUR CODE GOES HERE -->
+
+<!-- ``` -->
+
+```{python}
+# jupyter noteboook in python
+# import plotly.express as px
+# import plotly.io as pio
+# df = px.data.iris()
+# fig = px.scatter(df, x="sepal_width", y="sepal_length",
+#                  color="species",
+#                  marginal_y="violin", marginal_x="box",
+#                  trendline="ols", template="simple_white")
+# fig.show()
+```
