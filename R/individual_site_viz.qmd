@@ -1,0 +1,278 @@
+---
+title: "Individual Site Visualizations"
+format: 
+  html:
+    page-layout: custom
+server: shiny
+---
+
+::: {.panel-sidebar}
+```{r}
+#vars <- setdiff(names(iris), "Species")
+ pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
+selectInput('siteCode', 'Site Code', pine$data$Site[['locationID']])
+#selectInput('ycol', 'Y Variable', vars, selected = vars[[2]])
+#numericInput('clusters', 'Cluster count', 3, min = 1, max = 9)
+```
+:::
+
+::: {.panel-fill}
+```{r}
+textOutput('titleText')
+```
+
+
+::: panel-tabset
+### Tree Size
+```{r, message=FALSE}
+#| layout-ncol: 2
+library(plotly)
+
+plotlyOutput('treeHeightPlot')
+plotlyOutput('treeDBHPlot')
+plotlyOutput('treeStatusPlot')
+
+
+```
+
+### Vitality and Infestation
+```{r}
+#| layout-ncol: 2
+```
+
+
+### Tree Species
+```{r}
+#| layout-ncol: 2
+plotlyOutput('aliveSpeciesPlot')
+plotlyOutput('deadSpeciesPlot')
+```
+
+
+### Seedlings
+```{r}
+#| layout-ncol: 2
+plotlyOutput('seedlingCountPlot')
+plotlyOutput('seedlingHeightClassPlot')
+```
+
+### Cones
+```{r}
+#| layout-ncol: 2
+plotlyOutput('coneCountPlot')
+plotlyOutput('conePresencePlot')
+```
+
+
+:::
+:::
+
+```{r}
+#| context: server
+library(tidyverse)
+library(plotly)
+pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
+
+
+
+selectedData <- reactive({
+    pine$data$Site %>%
+    filter(locationID == input$siteCode)
+  })
+
+output$titleText <- renderText({paste0("Selected Site: ", input$siteCode)})
+
+# Graph of tree status by year
+output$treeStatusPlot <- renderPlotly({
+  oneSiteVitality <- pine$data$Tree %>%
+  filter(locationID == input$siteCode) %>%
+  ggplot(aes(x = factor(year(as_date(eventDate))), fill = vitality)) +
+  geom_bar() + 
+  theme_minimal() + 
+  labs(title = "Tree Vitality by Year",
+       x = "Year", y = "Count",
+       fill = "Vitality") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5))
+
+  #oneSiteVitality
+  plotly::ggplotly(oneSiteVitality)
+})
+
+# Graph of cone count by year
+output$coneCountPlot <- renderPlotly({
+  coneCountGraph <- pine$data$Tree %>%
+    filter(locationID == input$siteCode) %>%
+    mutate(year = year(as_date(eventDate))) %>%
+    filter(!is.na(coneCount) & coneCount != -999 & coneCount != 999) %>%
+    group_by(year, speciesCode) %>%
+    summarise(coneCountTotal = sum(coneCount)) %>%
+    ggplot(aes(x = factor(year),y = coneCountTotal, fill = speciesCode)) +
+    geom_col() + 
+    theme_minimal() + 
+    labs(title = "Cone Count by Year",
+         x = "Year", y = "Count",
+         fill = "Species Code") + 
+    theme(plot.title = element_text(hjust = 0.5)) +
+    theme(axis.text.x = element_text(hjust = 0.5))
+  
+    plotly::ggplotly(coneCountGraph)
+})
+
+# Graph of tree height
+output$treeHeightPlot <- renderPlotly({
+  oneSiteData <- pine$data$Tree %>%
+    filter(locationID == input$siteCode) %>%
+    filter(!is.na(treeHeight_m) & treeHeight_m != -999 & treeHeight_m != 999) %>%
+    mutate(heightGroup = cut(x = treeHeight_m, breaks = (0:max(treeHeight_m)))) %>%
+    mutate(year = factor(year(as_date(eventDate)))) %>%
+    group_by(heightGroup, year) %>%
+    summarise(count = n()) %>%
+    ggplot(aes(x = heightGroup, y = count, color = year)) +
+    geom_point() +
+    geom_line(aes(color = year), group = 2) +
+    theme_minimal() +
+    labs(title = "Tree Height by Year",
+         x = "Height (m)", y = "Count",
+         fill = "Year") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+  
+  #oneSiteData
+  ggplotly(oneSiteData)
+})
+
+# Graph of tree DBH
+output$treeDBHPlot <- renderPlotly({
+  treeDBHData <- pine$data$Tree %>%
+    filter(locationID == input$siteCode) %>%
+    filter(!is.na(treeDBH_cm) & treeDBH_cm != -999 & treeDBH_cm != 999) %>%
+    mutate(DBHGroup = cut(x = treeDBH_cm, breaks = (0:max(treeDBH_cm)))) %>%
+    mutate(year = factor(year(as_date(eventDate)))) %>%
+    group_by(DBHGroup, year) %>%
+    summarise(count = n()) %>%
+    ggplot(aes(x = DBHGroup, y = count, color = year)) +
+    geom_point() +
+    geom_line(aes(color = year), group = 2) +
+    theme_minimal() +
+    labs(title = "Tree DBH by Year",
+         x = "Height (cm)", y = "Count",
+         fill = "Year") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+  
+  #oneSiteData
+  ggplotly(treeDBHData)
+})
+
+# Graph of cone presence
+output$conePresencePlot <- renderPlotly({
+  coneGraph <- pine$data$Tree %>%
+    filter(locationID == input$siteCode) %>%
+    mutate(year = year(as_date(eventDate))) %>%
+    filter(!is.na(femaleCones)) %>%
+    group_by(year, femaleCones) %>%
+    summarise(coneTotal = n()) %>%
+    ggplot(aes(x = factor(year),y = coneTotal, fill = femaleCones)) +
+    geom_col() + 
+    theme_minimal() + 
+    labs(title = "Cone Presence by Year",
+         x = "Year", y = "Count",
+         fill = "Cone Presence") + 
+    theme(plot.title = element_text(hjust = 0.5)) +
+    theme(axis.text.x = element_text(hjust = 0.5))
+  
+    plotly::ggplotly(coneGraph)
+})
+
+# Graph of seedling count
+output$seedlingCountPlot <- renderPlotly({
+  seedlingCount <- pine$data$Seedling %>%
+    filter(locationID == input$siteCode) %>%
+    mutate(year = factor(year(as_date(eventDate)))) %>%
+    group_by(year, speciesCode) %>%
+    summarise(count = n()) %>%
+    ggplot(aes(x = year, y = count, fill = speciesCode)) +
+    geom_col() +
+    theme_minimal() +
+    labs(title = "Seedling Count by Year",
+         x = "Year", y = "Count",
+         fill = "Species Code") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    theme(axis.text.x = element_text(hjust = 0.5))  + 
+  scale_fill_brewer(palette="Accent", na.value = "grey")
+  
+  ggplotly(seedlingCount)
+})
+
+# Graph of alive tree species percentages
+output$aliveSpeciesPlot <- renderPlotly({
+  treeSpeciesPercent <- pine$data$Tree %>%
+    filter(locationID == input$siteCode) %>%
+    filter(vitality == "Live") %>%
+    mutate(year = year(as_date(eventDate))) %>%
+    group_by(speciesCode, year) %>%
+    summarize(speciesCount = n()) %>%
+    group_by(year) %>%
+    mutate(percent = speciesCount/sum(speciesCount)*100) %>%
+    ggplot(aes(x = factor(year), y = percent, fill = speciesCode)) +
+    geom_col() +
+    theme_minimal() +
+    labs(title = "Alive Tree Species",
+         x = "Year", y = "Percent",
+         fill = "Species") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    theme(axis.text.x = element_text(hjust = 0.5))
+    
+  
+  ggplotly(treeSpeciesPercent)
+})
+
+# Graph of dead tree species percentages
+output$deadSpeciesPlot <- renderPlotly({
+  treeSpeciesPercent2 <- pine$data$Tree %>%
+    filter(locationID == input$siteCode) %>%
+    filter(vitality == "Dead" | vitality == "Recently Dead") %>%
+    mutate(year = year(as_date(eventDate))) %>%
+    group_by(speciesCode, year) %>%
+    summarize(speciesCount = n()) %>%
+    group_by(year) %>%
+    mutate(percent = speciesCount/sum(speciesCount)*100) %>%
+    ggplot(aes(x = factor(year), y = percent, fill = speciesCode)) +
+    geom_col() +
+    theme_minimal() +
+    labs(title = "Dead Tree Species",
+         x = "Year", y = "Percent",
+         fill = "Species") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    theme(axis.text.x = element_text(hjust = 0.5))
+    
+  
+  ggplotly(treeSpeciesPercent2)
+})
+
+# Graph of seedling height categories
+output$seedlingHeightClassPlot <- renderPlotly({
+  seedlingHeight <- pine$data$Seedling %>%
+  filter(locationID == input$siteCode) %>%
+  mutate(year = year(as_date(eventDate)),
+         heightClass = factor(heightClass)) %>%
+  group_by(heightClass, year) %>%
+  summarize(heightGroupCount = n()) %>%
+  ggplot(aes(x = factor(year),y = heightGroupCount, fill = heightClass)) +
+  geom_col() +
+  theme_minimal() +
+  labs(title = "Seedling Height Classes by Year",
+       x = "Year", y = "Count",
+       fill = "Height Class") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) + 
+  scale_fill_brewer(palette="Accent", na.value = "grey")
+  
+ggplotly(seedlingHeight)
+})
+```
+
+
+
+
