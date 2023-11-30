@@ -121,10 +121,10 @@ output$coneCountPlot <- renderPlotly({
 
 # Graph of tree height
 output$treeHeightPlot <- renderPlotly({
-  oneSiteData <- pine$data$Tree %>%
+  treeHeight <- pine$data$Tree %>%
     filter(locationID == input$siteCode) %>%
     filter(!is.na(treeHeight_m) & treeHeight_m != -999 & treeHeight_m != 999) %>%
-    mutate(heightGroup = cut(x = treeHeight_m, breaks = (0:max(treeHeight_m)))) %>%
+    mutate(heightGroup = cut(x = treeHeight_m, breaks = 2*(0:(max(treeHeight_m)/2)))) %>%
     mutate(year = factor(year(as_date(eventDate)))) %>%
     group_by(heightGroup, year) %>%
     summarise(count = n()) %>%
@@ -139,7 +139,7 @@ output$treeHeightPlot <- renderPlotly({
     theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
   
   #oneSiteData
-  ggplotly(oneSiteData)
+  ggplotly(treeHeight)
 })
 
 # Graph of tree DBH
@@ -147,7 +147,7 @@ output$treeDBHPlot <- renderPlotly({
   treeDBHData <- pine$data$Tree %>%
     filter(locationID == input$siteCode) %>%
     filter(!is.na(treeDBH_cm) & treeDBH_cm != -999 & treeDBH_cm != 999) %>%
-    mutate(DBHGroup = cut(x = treeDBH_cm, breaks = (0:max(treeDBH_cm)))) %>%
+    mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 5*(0:(max(treeDBH_cm)/5)))) %>%
     mutate(year = factor(year(as_date(eventDate)))) %>%
     group_by(DBHGroup, year) %>%
     summarise(count = n()) %>%
@@ -156,7 +156,7 @@ output$treeDBHPlot <- renderPlotly({
     geom_line(aes(color = year), group = 2) +
     theme_minimal() +
     labs(title = "Tree DBH by Year",
-         x = "Height (cm)", y = "Count",
+         x = "DBH (cm)", y = "Count",
          fill = "Year") +
     theme(plot.title = element_text(hjust = 0.5)) +
     theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
