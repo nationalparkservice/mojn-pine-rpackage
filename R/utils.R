@@ -92,7 +92,7 @@ validMetadataTables <- function() {
 #' # Load from Access db
 #' LoadPine("M:/Monitoring/Pine/DataExports/FNP_BackEnd.accdb")
 #' }
-loadPine <- function(data_path, dictionary_dir = data_dir, dictionary_filenames = c(tables = "data_dictionary_tables.txt",
+loadPine <- function(data_path, dictionary_dir = data_path, dictionary_filenames = c(tables = "data_dictionary_tables.txt",
                                                                                     attributes = "data_dictionary_attributes.txt",
                                                                                     categories = "data_dictionary_categories.txt")) {
   # Normalize paths
@@ -108,19 +108,25 @@ loadPine <- function(data_path, dictionary_dir = data_dir, dictionary_filenames 
     all_tables <- fetchaccess::fetchFromAccess(data_path, data_prefix = "qExport_", lookup_prefix = c("tlu_", "tlu"), lookup_regex = "(^tlu_.*)|(^tbl_Sites$)", as.is = FALSE, add_r_classes = TRUE)
     all_tables <- list(data = all_tables$data,
                        metadata = all_tables$metadata)
+
   } else if (is_csv) {
     ## Option 2: Read data from CSV
     # Load data dictionary
-    dict_tables <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["tables"]), col_types = "c", show_col_types = FALSE)
-    dict_attributes <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["attributes"]), col_types = "c", show_col_types = FALSE)
-    dict_categories <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["categories"]), col_types = "c", show_col_types = FALSE)
+    dict_tables <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["tables"]), show_col_types = FALSE) %>%
+      dplyr::mutate(dplyr::across(dplyr::where(~ !is.character(.x)), as.character))  # Make all metadata columns character
+    dict_attributes <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["attributes"]), show_col_types = FALSE) %>%
+      dplyr::mutate(dplyr::across(dplyr::where(~ !is.character(.x)), as.character))  # Make all metadata columns character
+    dict_categories <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["categories"]), show_col_types = FALSE) %>%
+      dplyr::mutate(dplyr::across(dplyr::where(~ !is.character(.x)), as.character))  # Make all metadata columns character
 
     # Create column type spec
     col_spec <- fetchaccess::makeColSpec(dict_attributes)
 
+
     # Read from CSV
     data <- mapply(function(table_name, file_name) {
-      df <- readr::read_csv(file.path(data_path, file_name), col_types = col_spec[[table_name]])
+      df <- readr::read_csv(file.path(data_path, file_name), col_types = col_spec[[table_name]]) %>%
+        tibble::as_tibble()  # convert to tibble to get rid of extra attributes that read_csv adds so that there is no difference b/w reading from access vs csv
     }, dict_tables$tableName, dict_tables$fileName)
 
     names(data) <- dict_tables$tableName
@@ -156,7 +162,7 @@ writePine <- function(data_dir = here::here("data", "final"), dictionary_dir = h
                                                categories = "data_dictionary_categories.txt"),
                       verbose = FALSE, ...)
 {
-  fetchaccess::writeToFiles(all_tables = filterPine(...), data_dir = data_dir, dictionary_dir = dictionary_dir, lookup_dir = NA, metadata_filenames = metadata_filenames, verbose = verbose)
+  fetchaccess::writeToFiles(all_tables = filterPine(...), data_dir = data_dir, dictionary_dir = dictionary_dir, lookup_dir = NA, dictionary_filenames = dictionary_filenames, verbose = verbose)
 }
 
 #' List valid values for filtering data
@@ -283,7 +289,7 @@ filterOne <- function(data, data_name, filter_cols, case_sensitive, silent) {
       cols_filtered <- c(cols_filtered, col)  # Use this to keep track of which columns were actually filtered
       filter_value <- filter_cols[[col]]  # Value(s) to filter on
       if (col == "VisitDate") {
-        data <- dplyr::filter(data, lubridate::year(!!as.symbol(col)) %in% filter_value)
+        data <- dplyr::filter(data, lubridate::year(!!as.symbol(col)) %in% filter_value)  # Filtering by year
       } else if (is.character(data[[col]]) & !case_sensitive) {
         data <- dplyr::filter(data, tolower(!!as.symbol(col)) %in% tolower(filter_value))  # Case-insensitive filtering
       } else {
