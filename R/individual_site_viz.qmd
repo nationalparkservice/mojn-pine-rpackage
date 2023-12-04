@@ -9,6 +9,7 @@ server: shiny
 ::: {.panel-sidebar}
 ```{r}
 #vars <- setdiff(names(iris), "Species")
+data_dir = here::here("data")
  pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
 selectInput('siteCode', 'Site Code', pine$data$Site[['locationID']])
 #selectInput('ycol', 'Y Variable', vars, selected = vars[[2]])
@@ -30,14 +31,13 @@ library(plotly)
 
 plotlyOutput('treeHeightPlot')
 plotlyOutput('treeDBHPlot')
-plotlyOutput('treeStatusPlot')
-
 
 ```
 
 ### Vitality and Infestation
 ```{r}
 #| layout-ncol: 2
+plotlyOutput('treeStatusPlot')
 ```
 
 
@@ -110,7 +110,7 @@ output$coneCountPlot <- renderPlotly({
     ggplot(aes(x = factor(year),y = coneCountTotal, fill = speciesCode)) +
     geom_col() + 
     theme_minimal() + 
-    labs(title = "Cone Count by Year",
+    labs(title = "Cone Count",
          x = "Year", y = "Count",
          fill = "Species Code") + 
     theme(plot.title = element_text(hjust = 0.5)) +
@@ -155,7 +155,7 @@ output$treeDBHPlot <- renderPlotly({
     geom_point() +
     geom_line(aes(color = year), group = 2) +
     theme_minimal() +
-    labs(title = "Tree DBH by Year",
+    labs(title = "Tree DBH",
          x = "DBH (cm)", y = "Count",
          fill = "Year") +
     theme(plot.title = element_text(hjust = 0.5)) +
@@ -176,7 +176,7 @@ output$conePresencePlot <- renderPlotly({
     ggplot(aes(x = factor(year),y = coneTotal, fill = femaleCones)) +
     geom_col() + 
     theme_minimal() + 
-    labs(title = "Cone Presence by Year",
+    labs(title = "Cone Presence",
          x = "Year", y = "Count",
          fill = "Cone Presence") + 
     theme(plot.title = element_text(hjust = 0.5)) +
@@ -195,7 +195,7 @@ output$seedlingCountPlot <- renderPlotly({
     ggplot(aes(x = year, y = count, fill = speciesCode)) +
     geom_col() +
     theme_minimal() +
-    labs(title = "Seedling Count by Year",
+    labs(title = "Seedling Count",
          x = "Year", y = "Count",
          fill = "Species Code") +
     theme(plot.title = element_text(hjust = 0.5)) +
@@ -262,7 +262,7 @@ output$seedlingHeightClassPlot <- renderPlotly({
   ggplot(aes(x = factor(year),y = heightGroupCount, fill = heightClass)) +
   geom_col() +
   theme_minimal() +
-  labs(title = "Seedling Height Classes by Year",
+  labs(title = "Seedling Height Classes",
        x = "Year", y = "Count",
        fill = "Height Class") +
   theme(plot.title = element_text(hjust = 0.5)) +
