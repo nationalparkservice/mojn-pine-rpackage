@@ -1,0 +1,224 @@
+---
+title: "Ecological Metrics"
+format: html
+editor: visual
+execute: 
+  echo: false
+  message: false
+  warning: false
+  results: false
+---
+
+```{r}
+library(tidyverse)
+library(tidyverse)
+```
+
+## Data Wrangling
+
+```{r}
+#| output: false
+
+
+data_dir = here::here("data")
+# TODO: change to relative directory
+pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
+
+ 
+  
+# Remove seedling plots with no seedlings
+pine$data$Seedling <- pine$data$Seedling %>%
+  filter(speciesCode != "_NONE") %>%
+  # Make a unique identifier for all seedlings
+  mutate(uniqueSeedlingID = paste0(locationID, "_", tag)) 
+
+# TODO: there is probably a cleaner way to do this
+# Make a table with all of the seedlings that were pulled or missing
+pulledSeedlings <- pine$data$Seedling %>%
+  filter(vitality == 'P' | vitality == 'M')
+
+# Remove all instances of pulled or missing seedlings based on unique seedling ID
+pine$data$Seedling <- pine$data$Seedling %>%
+  filter(!(uniqueSeedlingID %in% pulledSeedlings$uniqueSeedlingID)) %>%
+  dplyr::select(-uniqueSeedlingID)
+
+
+
+# TODO: move this
+# Calculates the visit number for each visit to a site
+visitNum <- pine$data$Visit %>%
+  dplyr::filter(repeatSample != 1) %>%
+  dplyr::mutate(year = year(as_date(eventDate))) %>%
+  # TODO: make more robust, would a visit to a panel ever be one year off
+  # so something like make visit year the year the majority of visits are
+  dplyr::select(panel, year)%>%
+  dplyr::group_by(panel, year) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::group_by(panel) %>%
+  dplyr::mutate(visitNumber = seq_along(year))
+  # arrange year descending within panel descending
+
+# TODO: ONLY INCLUDES LIVE TREES
+# Cleaning live tree data for wrangling and visualization
+pine$data$Tree <- pine$data$Tree %>%
+  # Remove all dead trees
+  filter(vitality == "Live") %>%
+  # Remove rows where height or DBH that are NA
+  filter(!is.na(treeHeight_m) & treeHeight_m != -999 & treeHeight_m != 999) %>%
+  filter(!is.na(treeDBH_cm) & treeDBH_cm != -999 & treeDBH_cm != 999) %>%
+  mutate(uniqueTreeID = paste(locationID, "_", subplot, "_", tag),
+    year = year(as_date(eventDate))) %>%
+  # Join with table containing visit number
+  left_join(visitNum) %>%
+  # TODO update
+  filter(!is.na(visitNumber))
+```
+
+
+## Ecological Metrics
+::: panel-tabset
+
+##### Basal Area
+```{r}
+# avg basal area of plots split by communities/year
+# TODO: add error bars
+source("calculations.R")
+treeDominance <- getDominance(pine$data$Tree)
+
+pine$data$Tree %>%
+  getBasalArea() %>%
+  # find the total basal area of each locationID
+  group_by(locationID, visitNumber, sampleFrame) %>%
+  summarise(totalPlotBasal = sum(basalArea)) %>%
+  group_by(visitNumber, sampleFrame) %>%
+  summarise(meanBasalPerPlot = mean(totalPlotBasal)) %>%
+  ggplot(aes(x = factor(sampleFrame), y = meanBasalPerPlot, fill = factor(visitNumber))) + 
+  geom_col(stat="identity", position = "dodge") + 
+  theme_minimal() + 
+  labs(title = "Average Basal Area of each Plot",
+       x = "Community", y = "Basal Area (m^2)",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5))
+
+
+```
+
+##### Tree Count
+```{r}
+source("calculations.R")
+
+countGraph <- pine$data$Tree %>%
+  getTreeCount() %>%
+  #filter(locationID == "GRBA_N_002") %>%
+  ggplot(aes(x = factor(visitNumber), y = count, fill = factor(speciesCode))) +
+  geom_col()  +
+  facet_wrap(~locationID) + 
+  theme_minimal() + 
+  labs(title = "Species Count",
+       x = "Visit", y = "Count",
+       fill = "Species Code") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5))
+
+plotly::ggplotly(countGraph)
+```
+
+
+##### Density
+```{r}
+# Species, Total, 5cm DBH bins
+# Count of trees / area sampled
+# #/ha
+# Density of every plot
+density <- pine$data$Tree %>%
+  mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 5*(0:(max(treeDBH_cm)/5)))) %>%
+  group_by(speciesCode, locationID, visitNumber, sampleFrame, DBHGroup) %>%
+  summarise(density = n()/0.25) %>%
+  # Average dencity
+  group_by(speciesCode, DBHGroup, visitNumber) %>%
+  summarise(avgDensity = mean(density))
+
+densityGraph <- density %>%
+  filter(speciesCode != "JUNSCO" & speciesCode != "PINMON" & speciesCode != "UNK" & speciesCode != "PINPON") %>%
+  ggplot(aes(x = DBHGroup, y = avgDensity, color = factor(visitNumber))) +
+  geom_point() + 
+  geom_line(aes(color = factor(visitNumber), group = factor(visitNumber))) +
+  facet_wrap(~speciesCode, scales = "free") + 
+  theme_minimal() + 
+  labs(title = "Average Density",
+       x = "DBH (cm)", y = "Density (#/ha)",
+       color = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+
+plotly::ggplotly(densityGraph)
+```
+
+##### Frequency
+```{r}
+frequencyData <- pine$data$Tree %>%
+  getFrequency() %>%
+  group_by(speciesCode, visitNumber) %>%
+  summarise(avgFrequency = mean(frequency)) %>%
+  ggplot(aes(x = factor(speciesCode), y = avgFrequency, fill = factor(visitNumber))) +
+  geom_col(stat="identity", position = "dodge")  +
+  #facet_wrap(~speciesCode) + 
+  theme_minimal() + 
+  labs(title = "Average Frequency",
+       x = "Species", y = "Percent",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+
+plotly::ggplotly(frequencyData)
+```
+
+##### Dominance
+```{r}
+source("calculations.R")
+
+pine$data$Tree %>%
+  getDominance() %>%
+  filter(speciesCode != "JUNSCO" & speciesCode != "PINMON" & speciesCode != "UNK") %>%
+  ggplot(aes(x = factor(speciesCode), y = dominance, fill = factor(visitNumber))) +
+  facet_wrap(~speciesCode, scales="free", drop= TRUE) +
+  geom_violin() + 
+  theme_minimal() + 
+  labs(title = "Domiance",
+       x = "Species Code", y = "Dominance (m^2/ha)",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) 
+```
+
+##### Relative Density
+```{r}
+source("calculations.R")
+
+relativeDensityGraph <- pine$data$Tree %>%
+  getRelativeDensity() %>%
+  #filter(locationID == "GRBA_N_002") %>%
+  ggplot(aes(x = factor(visitNumber), y = relativeDensity, fill = factor(speciesCode))) +
+  geom_col()  +
+  facet_wrap(~locationID) + 
+  theme_minimal() + 
+  labs(title = "Relative Density",
+       x = "Visit", y = "Relative Density",
+       fill = "Species Code") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+
+plotly::ggplotly(relativeDensityGraph)
+```
+
+
+
+```{r}
+source("calculations.R")
+frequency <- pine$data$Tree %>% getFrequency()
+```
+
+
+
+:::
