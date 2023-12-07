@@ -11,6 +11,7 @@ execute:
 
 ```{r}
 # TODO: color blind palettes really only support 9 categories
+# TODO: add warnings/errors to calculation functions if the input data is not clean
 library(tidyverse)
 library(plotly)
 library(viridis)
@@ -302,7 +303,6 @@ ggplotly(importanceVal)
 ##### Tree Height
 ```{r}
 pine$data$Tree %>%
-  # getDominance() %>%
   filter(speciesCode != "JUNSCO" & speciesCode != "PINMON" & speciesCode != "UNK") %>%
   ggplot(aes(x = factor(speciesCode), y = treeHeight_m, fill = factor(visitNumber))) +
   facet_wrap(~speciesCode, scales="free", drop= TRUE) +
