@@ -11,7 +11,7 @@ execute:
 
 ```{r}
 library(tidyverse)
-library(tidyverse)
+library(plotly)
 ```
 
 ## Data Wrangling
@@ -185,7 +185,7 @@ pine$data$Tree %>%
   facet_wrap(~speciesCode, scales="free", drop= TRUE) +
   geom_violin() + 
   theme_minimal() + 
-  labs(title = "Domiance",
+  labs(title = "Dominance",
        x = "Species Code", y = "Dominance (m^2/ha)",
        fill = "Visit") + 
   theme(plot.title = element_text(hjust = 0.5)) +
@@ -213,12 +213,96 @@ plotly::ggplotly(relativeDensityGraph)
 ```
 
 
-
+##### Average Relative Frequency
 ```{r}
 source("calculations.R")
-frequency <- pine$data$Tree %>% getFrequency()
+relativeFrequency <- pine$data$Tree %>% 
+  getFrequency() %>%
+  group_by(speciesCode, visitNumber) %>%
+  summarise(avgRelativeFrequency = mean(relativeFrequency)) %>%
+  ggplot(aes(x = speciesCode, y = avgRelativeFrequency, fill = factor(visitNumber))) +
+  geom_col(position = "dodge") + 
+  theme_minimal() + 
+  labs(title = "Average Relative Frequency",
+       x = "Species", y = "Percent",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+
+ggplotly(relativeFrequency)
 ```
 
+
+##### Relative Dominance
+```{r}
+relDomiance <- pine$data$Tree %>%
+  getDominance() %>%
+  ggplot(aes(x = factor(visitNumber), y = relativeDominance, fill = factor(speciesCode))) +
+  geom_col() +
+  facet_wrap(~locationID) + 
+  theme_minimal() + 
+  labs(title = "Relative Dominance",
+       x = "Visit Number", y = "Percent",
+       fill = "Species Code") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+
+ggplotly(relDomiance)
+```
+
+##### Average Relative Density
+```{r}
+domincanceData <- pine$data$Tree %>%
+    getBasalArea() %>%
+    group_by(locationID, year, visitNumber) %>%
+    # Find the total dominance of each plot
+    mutate(totalDominance = sum(basalArea)/(2500/10000)) %>%
+    group_by(speciesCode, locationID, year, visitNumber, totalDominance) %>%
+    # Find the dominance for each species in each plot
+    # divide by 10000 to convert m^2 to hectares
+    summarize(dominance = sum(basalArea)/(2500/10000)) %>%
+    # Find relative density
+    mutate(relativeDominance = dominance/totalDominance*100) %>%
+  group_by(visitNumber, speciesCode) %>%
+  summarise(avgDominancePark = mean(relativeDominance)) %>%
+  ggplot(aes(x = factor(visitNumber), y = avgDominancePark, fill = factor(speciesCode))) +
+  geom_col() +
+  #facet_wrap(~locationID) + 
+  theme_minimal() + 
+  labs(title = "Relative Dominance per Park",
+       x = "Visit Number", y = "Percent",
+       fill = "Species Code") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+
+ggplotly(domincanceData)
+```
+
+##### Relative Density Per Park
+```{r}
+domincanceData <- pine$data$Tree %>%
+    getBasalArea() %>%
+    group_by(park, visitNumber) %>%
+    # Find the total dominance of each plot
+    mutate(totalDominance = sum(basalArea)/(2500*30/10000)) %>%
+    group_by(speciesCode, park, visitNumber, totalDominance) %>%
+    # Find the dominance for each species in each plot
+    # divide by 10000 to convert m^2 to hectares
+    summarize(dominance = sum(basalArea)/(2500*30/10000)) %>%
+    # Find relative density
+    mutate(relativeDominance = dominance/totalDominance*100) %>%
+  ggplot(aes(x = factor(visitNumber), y = relativeDominance, fill = factor(speciesCode))) +
+  geom_col() +
+  facet_wrap(~park) + 
+  theme_minimal() + 
+  labs(title = "Relative Dominance per Park",
+       x = "Visit Number", y = "Percent",
+       fill = "Species Code") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+
+ggplotly(domincanceData)
+```
 
 
 :::

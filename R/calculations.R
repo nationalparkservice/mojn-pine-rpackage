@@ -13,18 +13,27 @@ getBasalArea <- function(treeData){
   return(basalAreaData)
 }
 
-#' Calculate dominance of species in plots
+#' Calculate dominance and relative dominance of species in plots
 #' @returns
-#' Input area of meters sampled as meters squared, function converts to hectacres
+#' @param areaSampled area sampled as meters squared, function converts to hectacres
+#' @param grouping the variable you want to find the relative density of (eg. locationID or park)
+#' NOTE: if you change the grouping be aware that the area sampled changes, but the calculations cancel this out so its not necessary to change it
 # TODO: you have to enter cleaned data into this function that has been joined with visit number table
-getDominance <- function(treeData, areaSampled = 2500){
+getDominance <- function(treeData, areaSampled = 2500, grouping = locationID){
+  # dominance = Total basal area of a species / Total area sampled
+  # relative dominance = (Dominance of a species / Dominance of all species) * 100
 
   domincanceData <- treeData %>%
     getBasalArea() %>%
-    group_by(speciesCode, locationID, year, sampleFrame, visitNumber) %>%
-    # dominance = Total basal area of a species / Total area sampled
-    # divide by 10000 to convert m^2 to hectacres
-    summarize(dominance = sum(basalArea)/(areaSampled/10000))
+    group_by({{grouping}}, visitNumber) %>%
+    # Find the total dominance of each plot
+    mutate(totalDominance = sum(basalArea)/(areaSampled/10000)) %>%
+    group_by(speciesCode, {{grouping}}, visitNumber, totalDominance) %>%
+    # Find the dominance for each species in each plot
+    # divide by 10000 to convert m^2 to hectares
+    summarize(dominance = sum(basalArea)/(areaSampled/10000)) %>%
+    # Find relative density
+    mutate(relativeDominance = dominance/totalDominance*100)
 
   return(domincanceData)
 
@@ -55,6 +64,7 @@ getAvgDensity <- function(treeData, areaSampled = 2500){
 #' Finds the relative density of species within a specified variable
 #' @param areaSampled the area of the area sampled, enter in m^2
 #' @param grouping the variable you want to find the relative density of (eg. locationID or park)
+#' TODO: does it still work calculation wise?? - FIX
 getRelativeDensity <- function(treeData, areaSampled = 2500, grouping = locationID){
 
   relativeDensity <- treeData %>%
@@ -87,13 +97,13 @@ getTreeCount <- function(treedata, grouping = locationID){
 #' @param totalArea the total area of all transects in a plot, default is 2500
 getFrequency <- function(treeData, transectArea = 500, totalArea = 2500){
   frequency <- treeData %>%
-    group_by(locationID, visitNumber) %>%
-    mutate(totalFrequency = n_distinct(subplot)*transectArea/totalArea*100) %>%
+    # Calculate total frequency for each plot
+    mutate(totalFrequency = n_distinct(subplot)*transectArea/totalArea*100, .by = c(locationID, visitNumber)) %>%
     ungroup() %>%
     group_by(locationID, speciesCode, visitNumber, totalFrequency) %>%
-    #group_by(speciesCode) %>%
-    summarise(frequency = (n_distinct(subplot)*transectArea)/totalArea*100,
-              relativeFrequency = frequency/totalFrequency, .groups = "drop_last")
+    summarise(frequency = (n_distinct(subplot)*transectArea)/totalArea*100) %>%
+    # Calculate relative frequency for each species in a plot
+    mutate(relativeFrequency = frequency/totalFrequency*100)
 
   return(frequency)
 }
