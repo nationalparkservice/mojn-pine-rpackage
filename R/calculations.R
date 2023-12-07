@@ -92,22 +92,65 @@ getTreeCount <- function(treedata, grouping = locationID){
   return(treeCount)
 }
 
-# Calculate the frequency and relative frequency of each species
+# Calculate the frequency and relative frequency of each species within a specified variable
 #' @param transectArea the area of each transect, default is 500
 #' @param totalArea the total area of all transects in a plot, default is 2500
-getFrequency <- function(treeData, transectArea = 500, totalArea = 2500){
+#' NOTE: if you change the grouping you don't change totalArea, its automatically calculated
+#' @param grouping the variable you want to find the relative density of (eg. locationID or park)
+getFrequency <- function(treeData, transectArea = 500, totalArea = 2500, grouping = locationID){
+
   frequency <- treeData %>%
-    # Calculate total frequency for each plot
-    mutate(totalFrequency = n_distinct(subplot)*transectArea/totalArea*100, .by = c(locationID, visitNumber)) %>%
+    # create a ID so all subplots across
+    mutate(uniqueSubPlotNUm = paste0(locationID, "_", subplot)) %>%
+    # Calculate total frequency for each section
+    # number of subplots * transect area / number of plots * plot area
+    mutate(totalFrequency = n_distinct(uniqueSubPlotNUm)*transectArea/(n_distinct(locationID)*totalArea)*100, .by = c({{grouping}}, visitNumber)) %>%
     ungroup() %>%
-    group_by(locationID, speciesCode, visitNumber, totalFrequency) %>%
-    summarise(frequency = (n_distinct(subplot)*transectArea)/totalArea*100) %>%
+    group_by({{grouping}}, speciesCode, visitNumber, totalFrequency) %>%
+    summarise(frequency = (n_distinct(uniqueSubPlotNUm)*transectArea)/(n_distinct(locationID)*totalArea)*100) %>%
     # Calculate relative frequency for each species in a plot
     mutate(relativeFrequency = frequency/totalFrequency*100)
 
   return(frequency)
 }
 
+# Calculate the importance value of each species within a specified variable
+# TODO: should be able to pass in any param you can pass into the functions inside
+getImportanceValue <- function(treeData, ...){
+
+  # Calculate needed fields
+  relativeDensity <- getRelativeDensity(treeData, ...)
+  relativeFrequency <- getFrequency(treeData, ...)
+  relativeDominance <- getDominance(treeData, ...)
+
+  #Join tables and add fields together to get importance value
+  importanceValue <- plyr::join_all(list(relativeDensity, relativeFrequency, relativeDominance)) %>%
+    # importance value = Relative density + relative frequency + relative dominance
+    mutate(importanceValue = relativeDensity + relativeFrequency + relativeDominance)
+
+  return(importanceValue)
+}
+
+
+getTreeHeight <- function(treeData){
+# average height of each species in the 3 m bins
+
+  treeHeight <- treeData %>%
+    mutate(heightGroup = cut(x = treeHeight_m, breaks = 3*(0:(max(treeDBH_cm)/3)))) %>%
+    group_by(speciesCode, heightGroup, visitNumber) %>%
+    summarise(heightCount = n(),
+              meanHeight = mean(treeHeight_m))
+
+
+    # mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 5*(0:(max(treeDBH_cm)/5)))) %>%
+    # group_by(speciesCode, locationID, visitNumber, DBHGroup) %>%
+    # # Find the density for each species, plot, DBHGroup and year combo
+    # summarise(density = n()/(areaSampled/10000)) %>%
+    # # Average density for each species, year, DBHGroup
+    # group_by(speciesCode, DBHGroup, visitNumber) %>%
+    # summarise(avgDensity = mean(density))
+  return(treeHeight)
+}
 
 
 # TODO: move this

@@ -10,8 +10,11 @@ execute:
 ---
 
 ```{r}
+# TODO: color blind palettes really only support 9 categories
 library(tidyverse)
 library(plotly)
+library(viridis)
+library(khroma)
 ```
 
 ## Data Wrangling
@@ -19,6 +22,7 @@ library(plotly)
 ```{r}
 #| output: false
 
+#pine <- fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
 data_dir = here::here("data")
 # TODO: change to relative directory
@@ -75,7 +79,7 @@ pine$data$Tree <- pine$data$Tree %>%
 ```
 
 
-## Ecological Metrics
+## Live Trees
 ::: panel-tabset
 
 ##### Basal Area
@@ -95,11 +99,12 @@ pine$data$Tree %>%
   ggplot(aes(x = factor(sampleFrame), y = meanBasalPerPlot, fill = factor(visitNumber))) + 
   geom_col(stat="identity", position = "dodge") + 
   theme_minimal() + 
-  labs(title = "Average Basal Area of each Plot",
+  labs(title = "Average Basal Area of each Community",
        x = "Community", y = "Basal Area (m^2)",
        fill = "Visit") + 
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5))
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
 
 
 ```
@@ -150,7 +155,8 @@ densityGraph <- density %>%
        x = "DBH (cm)", y = "Density (#/ha)",
        color = "Visit") + 
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
+  scale_fill_light()
 
 plotly::ggplotly(densityGraph)
 ```
@@ -169,7 +175,8 @@ frequencyData <- pine$data$Tree %>%
        x = "Species", y = "Percent",
        fill = "Visit") + 
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
+  scale_fill_light()
 
 plotly::ggplotly(frequencyData)
 ```
@@ -189,7 +196,8 @@ pine$data$Tree %>%
        x = "Species Code", y = "Dominance (m^2/ha)",
        fill = "Visit") + 
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5)) 
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
 ```
 
 ##### Relative Density
@@ -227,11 +235,35 @@ relativeFrequency <- pine$data$Tree %>%
        x = "Species", y = "Percent",
        fill = "Visit") + 
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
+  scale_fill_light()
 
 ggplotly(relativeFrequency)
 ```
 
+
+##### Relative Frequency
+```{r}
+source("calculations.R")
+relativeFrequency <- pine$data$Tree %>% 
+  getFrequency() %>%
+  filter(speciesCode != "JUNSCO") %>%
+  ggplot(aes(x = factor(visitNumber), y = relativeFrequency, fill = factor(speciesCode))) +
+  geom_col() +
+  facet_wrap(~locationID) +
+  theme_minimal() + 
+  labs(title = "Relative Frequency",
+       x = "Species", y = "Percent",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
+  #scale_fill_viridis(length(unique(pine$data$Tree$speciesCode)), option = "A", discrete = TRUE)
+  scale_fill_muted()
+
+
+
+ggplotly(relativeFrequency)
+```
 
 ##### Relative Dominance
 ```{r}
@@ -250,59 +282,118 @@ relDomiance <- pine$data$Tree %>%
 ggplotly(relDomiance)
 ```
 
-##### Average Relative Density
+##### Importance Value
 ```{r}
-domincanceData <- pine$data$Tree %>%
-    getBasalArea() %>%
-    group_by(locationID, year, visitNumber) %>%
-    # Find the total dominance of each plot
-    mutate(totalDominance = sum(basalArea)/(2500/10000)) %>%
-    group_by(speciesCode, locationID, year, visitNumber, totalDominance) %>%
-    # Find the dominance for each species in each plot
-    # divide by 10000 to convert m^2 to hectares
-    summarize(dominance = sum(basalArea)/(2500/10000)) %>%
-    # Find relative density
-    mutate(relativeDominance = dominance/totalDominance*100) %>%
-  group_by(visitNumber, speciesCode) %>%
-  summarise(avgDominancePark = mean(relativeDominance)) %>%
-  ggplot(aes(x = factor(visitNumber), y = avgDominancePark, fill = factor(speciesCode))) +
+importanceVal <- pine$data$Tree %>%
+  getImportanceValue() %>%
+  ggplot(aes(x = factor(visitNumber), y = importanceValue, fill = factor(speciesCode))) +
   geom_col() +
-  #facet_wrap(~locationID) + 
+  facet_wrap(~locationID) + 
   theme_minimal() + 
-  labs(title = "Relative Dominance per Park",
-       x = "Visit Number", y = "Percent",
+  labs(title = "Importance Value",
+       x = "Visit Number", y = "Value",
        fill = "Species Code") + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
 
-ggplotly(domincanceData)
+ggplotly(importanceVal)
 ```
 
-##### Relative Density Per Park
+##### Tree Height
 ```{r}
-domincanceData <- pine$data$Tree %>%
-    getBasalArea() %>%
-    group_by(park, visitNumber) %>%
-    # Find the total dominance of each plot
-    mutate(totalDominance = sum(basalArea)/(2500*30/10000)) %>%
-    group_by(speciesCode, park, visitNumber, totalDominance) %>%
-    # Find the dominance for each species in each plot
-    # divide by 10000 to convert m^2 to hectares
-    summarize(dominance = sum(basalArea)/(2500*30/10000)) %>%
-    # Find relative density
-    mutate(relativeDominance = dominance/totalDominance*100) %>%
-  ggplot(aes(x = factor(visitNumber), y = relativeDominance, fill = factor(speciesCode))) +
-  geom_col() +
-  facet_wrap(~park) + 
+pine$data$Tree %>%
+  # getDominance() %>%
+  filter(speciesCode != "JUNSCO" & speciesCode != "PINMON" & speciesCode != "UNK") %>%
+  ggplot(aes(x = factor(speciesCode), y = treeHeight_m, fill = factor(visitNumber))) +
+  facet_wrap(~speciesCode, scales="free", drop= TRUE) +
+  geom_violin() + 
   theme_minimal() + 
-  labs(title = "Relative Dominance per Park",
-       x = "Visit Number", y = "Percent",
-       fill = "Species Code") + 
+  labs(title = "Tree Height",
+       x = "Species Code", y = "Height (m)",
+       fill = "Visit") + 
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5, angle = 315))
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
+```
 
-ggplotly(domincanceData)
+
+```{r}
+frequency <- pine$data$Tree %>%
+  getFrequency(grouping = sampleFrame)
 ```
 
 
 :::
+
+
+## Dead and Recently Dead Trees
+
+::: panel-tabset
+
+```{r}
+pineDead <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
+
+pineDead <- pineDead$data$Tree %>%
+  filter(vitality == "Dead" | vitality == "Recently Dead") %>%
+    mutate(uniqueTreeID = paste(locationID, "_", subplot, "_", tag),
+    year = year(as_date(eventDate))) %>%
+  # Join with table containing visit number
+  left_join(visitNum) %>%
+  # TODO update
+  filter(!is.na(visitNumber)) %>%
+  filter(!is.na(treeDBH_cm) & treeDBH_cm != -999 & treeDBH_cm != 999)
+```
+##### Count
+```{r}
+countDeadGraph <- pineDead %>%
+  getTreeCount() %>%
+  #filter(locationID == "GRBA_N_002") %>%
+  ggplot(aes(x = factor(visitNumber), y = count, fill = factor(speciesCode))) +
+  geom_col()  +
+  facet_wrap(~locationID) + 
+  theme_minimal() + 
+  labs(title = "Species Count",
+       x = "Visit", y = "Count",
+       fill = "Species Code") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_muted()
+
+plotly::ggplotly(countDeadGraph)
+```
+
+
+##### Density
+```{r}
+# Species, Total, 5cm DBH bins
+# Count of trees / area sampled
+# #/ha
+# Density of every plot
+densityGraph <- pineDead %>%
+  #mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 5*(0:(max(treeDBH_cm)/5)))) %>%
+  group_by(speciesCode, locationID, visitNumber) %>%
+  summarise(density = n()/0.25) %>%
+  group_by(speciesCode) %>%
+  filter(n() > 2) %>%
+  ungroup() %>%
+  ggplot(aes(x = factor(visitNumber), y = density, fill = factor(visitNumber))) +
+  geom_violin() + 
+  facet_wrap(~speciesCode, scales = "free", drop = TRUE) + 
+  theme_minimal() + 
+  labs(title = "Density",
+       x = "Species", y = "Density (#/ha)",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
+  scale_fill_light()
+
+densityGraph
+```
+
+
+:::
+
+Tree Status and Infestation
+::: panel-tabset
+:::
+
