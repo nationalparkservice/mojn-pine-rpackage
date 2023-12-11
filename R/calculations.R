@@ -41,6 +41,7 @@ getDominance <- function(treeData, areaSampled = 2500, grouping = locationID){
 #' @param areaSampled the area of a plot in meters^2, default is 2500
 #' Input area of meters sampled as meters squared, function converts to hectares
 #' TODO: make sure this can  be scaled up
+#' TODO: could make height groups an input into the function
 getDensityDBH <- function(treeData, areaSampled = 2500){
 
   densityData <- treeData %>%
@@ -61,6 +62,7 @@ getDensityDBH <- function(treeData, areaSampled = 2500){
 #' @param areaSampled the area of the area sampled, enter in m^2
 #' @param grouping the variable you want to find the relative density of (eg. locationID or park)
 #' TODO: does it still work calculation wise?? - FIX
+#' TODO: add just density to this function
 getRelativeDensity <- function(treeData, areaSampled = 2500, grouping = locationID){
 
   relativeDensity <- treeData %>%
@@ -81,7 +83,7 @@ getRelativeDensity <- function(treeData, areaSampled = 2500, grouping = location
 #' @param grouping the variable you want to find the count of (eg. locationID or park)
 getTreeCount <- function(treedata, grouping = locationID){
   treeCount <- treedata %>%
-    group_by({{grouping}}, speciesCode, visitNumber, sampleFrame) %>%
+    group_by({{grouping}}, speciesCode, visitNumber) %>%
     summarise(count = n())
 
   return(treeCount)

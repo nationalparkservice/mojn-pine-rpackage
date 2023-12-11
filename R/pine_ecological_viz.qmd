@@ -15,6 +15,9 @@ execute:
 # TODO: point to updated database
 # TODO: remove pulled and missing trees (all instances of them)
 # TODO: turn new (all tree) graphs into functions if useful and make them able to scale up
+# TODO: what are the white pine species? show only these species on the vitality/infestation graphs
+#         also should these graphs really be applied to alive and dead trees?
+# TODO: update density functions
 library(tidyverse)
 library(plotly)
 library(viridis)
@@ -31,7 +34,19 @@ data_dir = here::here("data")
 # TODO: change to relative directory
 pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
 
- 
+# TODO: move this
+# Calculates the visit number for each visit to a site
+visitNum <- pine$data$Visit %>%
+  dplyr::filter(repeatSample != 1) %>%
+  dplyr::mutate(year = year(as_date(eventDate))) %>%
+  # TODO: make more robust, would a visit to a panel ever be one year off
+  # so something like make visit year the year the majority of visits are
+  dplyr::select(panel, year)%>%
+  dplyr::group_by(panel, year) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::group_by(panel) %>%
+  dplyr::mutate(visitNumber = seq_along(year))
+  # arrange year descending within panel descending 
   
 # Remove seedling plots with no seedlings
 pine$data$Seedling <- pine$data$Seedling %>%
@@ -47,23 +62,13 @@ pulledSeedlings <- pine$data$Seedling %>%
 # Remove all instances of pulled or missing seedlings based on unique seedling ID
 pine$data$Seedling <- pine$data$Seedling %>%
   filter(!(uniqueSeedlingID %in% pulledSeedlings$uniqueSeedlingID)) %>%
-  dplyr::select(-uniqueSeedlingID)
+  dplyr::select(-uniqueSeedlingID) %>%
+  mutate(year = year(as_date(eventDate))) %>%
+  # Join with table containing visit number
+  left_join(visitNum) %>%
+  # TODO update
+  filter(!is.na(visitNumber))
 
-
-
-# TODO: move this
-# Calculates the visit number for each visit to a site
-visitNum <- pine$data$Visit %>%
-  dplyr::filter(repeatSample != 1) %>%
-  dplyr::mutate(year = year(as_date(eventDate))) %>%
-  # TODO: make more robust, would a visit to a panel ever be one year off
-  # so something like make visit year the year the majority of visits are
-  dplyr::select(panel, year)%>%
-  dplyr::group_by(panel, year) %>%
-  dplyr::summarize(n = n()) %>%
-  dplyr::group_by(panel) %>%
-  dplyr::mutate(visitNumber = seq_along(year))
-  # arrange year descending within panel descending
 
 # TODO: ONLY INCLUDES LIVE TREES
 # Cleaning live tree data for wrangling and visualization
@@ -432,6 +437,7 @@ pineAliveAndDead$data$Tree <- pineAliveAndDead$data$Tree %>%
 
 
 ##### Vitality
+Fix this one
 ```{r}
 # Species, Total, 5cm DBH bins
 # Proportion Live and dead
@@ -514,7 +520,272 @@ ggplotly(crownKill)
 
 
 
-##### Dwarf Mistletoe Proportion
+```{r}
+# Canker data wrangling
+# TODO: there are no cankers in the data so use test dats with cankers to try out canker graphs 
+
+treeCankerTest <- pineAliveAndDead$data$Tree %>%
+  dplyr::filter(dplyr::if_all((contains("Cank") & !contains("Type")), ~ !is.na(.x))) %>%
+  select(locationID, boleCankers_A_Lower,boleCankers_A_Mid, branchCanks_I_Upper, branchCanks_I_Mid, visitNumber, speciesCode) %>%
+  slice(1:500)
+
+
+treeCankerTest[sample(1:500, 100, replace=FALSE), 'boleCankers_A_Lower'] =  'Y'
+treeCankerTest[sample(1:500, 250, replace=FALSE), 'boleCankers_A_Mid'] =  'Y'
+treeCankerTest[sample(1:500, 150, replace=FALSE), c("branchCanks_I_Upper")] = 'Y'
+treeCankerTest[sample(1:500, 100, replace=FALSE), 'branchCanks_I_Mid'] = 'Y'
+
+#Cankers <- pineAliveAndDead$data$Tree %>%
+cankers <- treeCankerTest %>%  
+  # Filter out any canker rows that contains a NA (that are not canker type)
+  dplyr::filter(dplyr::if_all((contains("Cank") & !contains("Type")), ~ !is.na(.x))) %>%
+  mutate(activeCankers = case_when(
+    # If any of the columns that contain the strings "cank" and "_A_" set the active canker marker to Y
+    (if_any((contains("Cank") & contains("_A_")), ~ . == 'Y')) ~ 'Y',
+    # Otherwise set it to N
+    .default = 'N')) %>%
+  mutate(inactiveCankers = case_when(
+    # If any of the columns that contain the strings "cank" and "_A_" set the active canker marker to Y
+    (if_any((contains("Cank") & contains("_I_")), ~ . == 'Y')) ~ 'Y',
+    # Otherwise set it to N
+    .default = 'N')) %>%
+  mutate(anyCankers = case_when(
+    # If the active or inactive canker columns are yes, set any canker marker to yes
+    (activeCankers == 'Y' | inactiveCankers == 'Y') ~ 'Y',
+    # Otherwise set it to N
+    .default = 'N'))
+
+```
+
+
+##### Active Canker Percent
+```{r}
+# Percent of trees with active cankers by species
+# TODO: could group by plot/park/community and then avg it
+
+activeCankerPercent <- cankers %>%
+  group_by(visitNumber, speciesCode) %>%
+  mutate(totalTrees = n()) %>%
+  group_by(visitNumber, speciesCode, activeCankers, totalTrees) %>%
+  summarise(numActive = n()) %>%
+  mutate(percent = numActive/totalTrees*100) %>%
+  # group_by(speciesCode, visitNumber, activeCankers) %>%
+  # summarise(avgPercent = mean(percent)) %>%
+  ggplot(aes(x = factor(visitNumber), y = percent, fill = activeCankers)) +
+  geom_col() +
+  facet_wrap(~speciesCode) + 
+  theme_minimal() + 
+  labs(title = "Active Canker Percent",
+       x = "Visit", y = "Percent",
+       fill = "Active Cankers") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_viridis(discrete = TRUE)
+
+ggplotly(activeCankerPercent)
+```
+
+##### Active Canker Density 
+```{r}
+# Density of trees with active cankers by species
+# Count of trees / area sampled  area =2500 sq m = 0.25 ha
+# number/ha
+
+activeCankerDensity <-  cankers %>%
+  group_by(visitNumber, speciesCode, activeCankers, locationID) %>%
+  summarise(plotDensity = n()/0.25) %>%
+  group_by(visitNumber, speciesCode, activeCankers) %>%
+  summarise(avgDensity = mean(plotDensity)) %>%
+  ggplot(aes(x = factor(visitNumber), y = avgDensity, fill = activeCankers)) +
+  geom_col() +
+  facet_wrap(~speciesCode) + 
+  theme_minimal() + 
+  labs(title = "Active Canker Density",
+       x = "Visit", y = "Density (#/ha)",
+       fill = "Active Cankers") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
+  #scale_fill_discrete(type = ())
+
+ggplotly(activeCankerDensity)
+```
+
+##### Inactive Canker Percent
+```{r}
+# Percent of trees with inactive cankers by species
+# TODO: could group by plot/park/community and then avg it
+
+inactiveCankerPercent <- cankers %>%
+  group_by(visitNumber, speciesCode) %>%
+  mutate(totalTrees = n()) %>%
+  group_by(visitNumber, speciesCode, inactiveCankers, totalTrees) %>%
+  summarise(numActive = n()) %>%
+  mutate(percent = numActive/totalTrees*100) %>%
+  # group_by(speciesCode, visitNumber, activeCankers) %>%
+  # summarise(avgPercent = mean(percent)) %>%
+  ggplot(aes(x = factor(visitNumber), y = percent, fill = inactiveCankers)) +
+  geom_col() +
+  facet_wrap(~speciesCode) + 
+  theme_minimal() + 
+  labs(title = "Inactive Canker Percent",
+       x = "Visit", y = "Percent",
+       fill = "Active Cankers") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
+
+ggplotly(inactiveCankerPercent)
+```
+
+
+##### Inactive Canker Density
+```{r}
+# Density of trees with inactive cankers by species
+# Count of trees / area sampled  area =2500 sq m = 0.25 ha
+# number/ha
+
+activeCankerDensity <-  cankers %>%
+  group_by(visitNumber, speciesCode, inactiveCankers, locationID) %>%
+  summarise(plotDensity = n()/0.25) %>%
+  group_by(visitNumber, speciesCode, inactiveCankers) %>%
+  summarise(avgDensity = mean(plotDensity)) %>%
+  ggplot(aes(x = factor(visitNumber), y = avgDensity, fill = inactiveCankers)) +
+  geom_col() +
+  facet_wrap(~speciesCode) + 
+  theme_minimal() + 
+  labs(title = "Inctive Canker Density",
+       x = "Visit", y = "Density (#/ha)",
+       fill = "Inactive Cankers") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
+  #scale_fill_discrete(type = ())
+
+ggplotly(activeCankerDensity)
+```
+
+
+##### Canker Percent
+```{r}
+# Percent of trees with active OR inactive cankers by species
+cankerPercent <- cankers %>%
+  group_by(visitNumber, speciesCode) %>%
+  mutate(totalTrees = n()) %>%
+  group_by(visitNumber, speciesCode, anyCankers, totalTrees) %>%
+  summarise(numActive = n()) %>%
+  mutate(percent = numActive/totalTrees*100) %>%
+  # group_by(speciesCode, visitNumber, activeCankers) %>%
+  # summarise(avgPercent = mean(percent)) %>%
+  ggplot(aes(x = factor(visitNumber), y = percent, fill = anyCankers)) +
+  geom_col() +
+  facet_wrap(~speciesCode) + 
+  theme_minimal() + 
+  labs(title = "Canker Percent",
+       x = "Visit", y = "Percent",
+       fill = "Cankers") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
+  #scale_fill_discrete(type = c("#99DDFF", "#bbcc33"))
+
+ggplotly(cankerPercent)
+```
+
+##### Canker Density
+```{r}
+# Density of trees with active OR inactive cankers by species
+# Count of trees / area sampled  area =2500 sq m = 0.25 ha
+# number/ha
+
+# TODO White pine species, 5cm DBH bins
+activeCankerDensity <-  cankers %>%
+  group_by(visitNumber, speciesCode, anyCankers, locationID) %>%
+  summarise(plotDensity = n()/0.25) %>%
+  group_by(visitNumber, speciesCode, anyCankers) %>%
+  summarise(avgDensity = mean(plotDensity)) %>%
+  ggplot(aes(x = factor(visitNumber), y = avgDensity, fill = anyCankers)) +
+  geom_col() +
+  facet_wrap(~speciesCode) + 
+  theme_minimal() + 
+  labs(title = "Canker Density",
+       x = "Visit", y = "Density (#/ha)",
+       fill = "Cankers") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
+  #scale_fill_discrete(type = ())
+
+ggplotly(activeCankerDensity)
+```
+
+```{r}
+# Data wrangling to create one pine beetle marker
+pineBeetles <- pineAliveAndDead$data$Tree %>%
+  # Filter out any beetle rows that contains a NA
+  dplyr::filter(dplyr::if_all((contains("Cank") & !contains("Type")), ~ !is.na(.x))) %>%
+  mutate(pineBeetle = case_when(
+    # If any of the columns that contain the strings "beetle" set the beetle marker to Y
+    (if_any((contains("Beetle")), ~ . == 'Y')) ~ 'Y',
+    # Otherwise set it to N
+    .default = 'N'))
+```
+
+
+##### Pine Beetle Percent
+```{r}
+# Percent of trees with beetle sign
+
+beetlePercent <- pineBeetles %>%
+  group_by(speciesCode, visitNumber) %>%
+  mutate(totalTrees = n()) %>%
+  group_by(visitNumber, speciesCode, pineBeetle, totalTrees) %>%
+  summarise(numBeetles = n()) %>%
+  mutate(percent = numBeetles/totalTrees*100) %>%
+  # group_by(speciesCode, visitNumber, activeCankers) %>%
+  # summarise(avgPercent = mean(percent)) %>%
+  ggplot(aes(x = factor(visitNumber), y = percent, fill = pineBeetle)) +
+  geom_col() +
+  facet_wrap(~speciesCode) + 
+  theme_minimal() + 
+  labs(title = "Pine Beetle Percent",
+       x = "Visit", y = "Percent",
+       fill = "Beetle") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
+
+ggplotly(beetlePercent)
+```
+
+
+##### Pine Beetle Density
+```{r}
+# Density of trees with beetle sign
+# number/ha
+
+beetleDensity <-  pineBeetles %>%
+  group_by(visitNumber, speciesCode, pineBeetle, locationID) %>%
+  summarise(plotDensity = n()/0.25) %>%
+  group_by(visitNumber, speciesCode, pineBeetle) %>%
+  summarise(avgDensity = mean(plotDensity)) %>%
+  ggplot(aes(x = factor(visitNumber), y = avgDensity, fill = pineBeetle)) +
+  geom_col() +
+  facet_wrap(~speciesCode) + 
+  theme_minimal() + 
+  labs(title = "Pine Beetle Density",
+       x = "Visit", y = "Density (#/ha)",
+       fill = "Pine Beetles") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
+  #scale_fill_discrete(type = ())
+
+ggplotly(beetleDensity)
+```
+
+
+##### Dwarf Mistletoe Percent
 ```{r}
 
 mistletoePercent <- pineAliveAndDead$data$Tree %>%
@@ -633,6 +904,118 @@ coneCount <- pineAliveAndDead$data$Tree %>%
 
 ggplotly(coneCount)
 ```
+
+:::
+
+## Seedlings
+::: panel-tabset
+
+##### Count
+```{r}
+seedlingCount <- pine$data$Seedling %>%
+  getTreeCount(grouping = heightClass) %>%
+  ggplot(aes(x = factor(visitNumber), y = count, fill = factor(heightClass))) +
+  facet_wrap(~speciesCode, scales = "free") +
+  geom_col(position = position_dodge(preserve = "single")) + 
+  theme_minimal() + 
+  labs(title = "Seedling Count",
+       x = "Visit", y = "Count",
+       fill = "Height Class") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
+
+ggplotly(seedlingCount)
+```
+
+##### Density
+```{r}
+# number/ha
+#species, plot, height class
+seedlingDensity <- pine$data$Seedling %>%
+  group_by(speciesCode, visitNumber, locationID, heightClass) %>%
+  # area of all the seedling transects in one plot: 3*3*9 = 81 m^2
+  summarise(density = n()/0.0081) %>%
+  group_by(speciesCode, visitNumber, heightClass) %>%
+  summarise(avgDensity = mean(density)) %>%
+  ggplot(aes(x = factor(visitNumber), y = avgDensity, fill = heightClass)) +
+  facet_wrap(~speciesCode, scales = "free") +
+  geom_col(position = position_dodge(preserve = "single")) + 
+  theme_minimal() + 
+  labs(title = "Seedling Density",
+       x = "Visit", y = "Density (#/ha)",
+       fill = "Height Class") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
+
+ggplotly(seedlingDensity)
+  
+```
+
+
+##### Average Frequency
+```{r}
+# Area of transects in which a species occurs / total area of transects
+
+seedlingFrequency <- pine$data$Seedling %>%
+  getFrequency(transectArea = 9, totalArea = 81) %>%
+  group_by(speciesCode, visitNumber) %>%
+  summarise(avgFrequency = mean(frequency)) %>%
+  ggplot(aes(x = speciesCode, y = avgFrequency, fill = factor(visitNumber))) +
+  #facet_wrap(~speciesCode, scales = "free") +
+  geom_col(position = position_dodge(preserve = "single")) + 
+  theme_minimal() + 
+  labs(title = "Average Frequency",
+       x = "Species", y = "Percent",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
+
+ggplotly(seedlingFrequency)
+```
+
+
+##### Relative Density
+```{r}
+seedlingRelDensity <- pine$data$Seedling %>%
+  getRelativeDensity(areaSampled = 81) %>% 
+  ggplot(aes(x = factor(visitNumber), y = relativeDensity, fill = speciesCode)) +
+  geom_col() +
+  facet_wrap(~locationID) +
+  theme_minimal() + 
+  labs(title = "Relative Density",
+       x = "Species", y = "Percent",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
+  #scale_fill_viridis(length(unique(pine$data$Tree$speciesCode)), option = "A", discrete = TRUE)
+  scale_fill_muted()
+
+ggplotly(seedlingRelDensity)
+```
+
+
+##### Relative Frequency
+```{r}
+seedlingRelFrequency <- pine$data$Seedling %>%
+  getFrequency(transectArea = 9, totalArea = 81) %>% 
+  ggplot(aes(x = factor(visitNumber), y = relativeFrequency, fill = speciesCode)) +
+  geom_col() +
+  facet_wrap(~locationID) +
+  theme_minimal() + 
+  labs(title = "Relative Frequency",
+       x = "Species", y = "Percent",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
+  #scale_fill_viridis(length(unique(pine$data$Tree$speciesCode)), option = "A", discrete = TRUE)
+  scale_fill_muted()
+
+ggplotly(seedlingRelFrequency)
+```
+
 
 
 :::
