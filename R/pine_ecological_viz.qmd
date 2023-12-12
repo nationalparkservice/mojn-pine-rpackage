@@ -12,12 +12,13 @@ execute:
 ```{r}
 # TODO: color blind palettes really only support 9 categories
 # TODO: add warnings/errors to calculation functions if the input data is not clean
-# TODO: point to updated database
+# TODO: update all network database and point to it
 # TODO: remove pulled and missing trees (all instances of them)
 # TODO: turn new (all tree) graphs into functions if useful and make them able to scale up
 # TODO: what are the white pine species? show only these species on the vitality/infestation graphs
 #         also should these graphs really be applied to alive and dead trees?
 # TODO: update density functions
+# TODO: is it possible to import which species are FNP species
 library(tidyverse)
 library(plotly)
 library(viridis)
@@ -28,62 +29,15 @@ library(khroma)
 ```{r}
 #| output: false
 
-#pine <- fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
-
 data_dir = here::here("data")
 # TODO: change to relative directory
-pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
-
-# TODO: move this
-# Calculates the visit number for each visit to a site
-visitNum <- pine$data$Visit %>%
-  dplyr::filter(repeatSample != 1) %>%
-  dplyr::mutate(year = year(as_date(eventDate))) %>%
-  # TODO: make more robust, would a visit to a panel ever be one year off
-  # so something like make visit year the year the majority of visits are
-  dplyr::select(panel, year)%>%
-  dplyr::group_by(panel, year) %>%
-  dplyr::summarize(n = n()) %>%
-  dplyr::group_by(panel) %>%
-  dplyr::mutate(visitNumber = seq_along(year))
-  # arrange year descending within panel descending 
-  
-# Remove seedling plots with no seedlings
-pine$data$Seedling <- pine$data$Seedling %>%
-  filter(speciesCode != "_NONE") %>%
-  # Make a unique identifier for all seedlings
-  mutate(uniqueSeedlingID = paste0(locationID, "_", tag)) 
-
-# TODO: there is probably a cleaner way to do this
-# Make a table with all of the seedlings that were pulled or missing
-pulledSeedlings <- pine$data$Seedling %>%
-  filter(vitality == 'P' | vitality == 'M')
-
-# Remove all instances of pulled or missing seedlings based on unique seedling ID
-pine$data$Seedling <- pine$data$Seedling %>%
-  filter(!(uniqueSeedlingID %in% pulledSeedlings$uniqueSeedlingID)) %>%
-  dplyr::select(-uniqueSeedlingID) %>%
-  mutate(year = year(as_date(eventDate))) %>%
-  # Join with table containing visit number
-  left_join(visitNum) %>%
-  # TODO update
-  filter(!is.na(visitNumber))
-
-
-# TODO: ONLY INCLUDES LIVE TREES
-# Cleaning live tree data for wrangling and visualization
-pine$data$Tree <- pine$data$Tree %>%
-  # Remove all dead trees
-  filter(vitality == "Live") %>%
-  # Remove rows where height or DBH that are NA
-  filter(!is.na(treeHeight_m) & treeHeight_m != -999 & treeHeight_m != 999) %>%
-  filter(!is.na(treeDBH_cm) & treeDBH_cm != -999 & treeDBH_cm != 999) %>%
-  mutate(uniqueTreeID = paste(locationID, "_", subplot, "_", tag),
-    year = year(as_date(eventDate))) %>%
-  # Join with table containing visit number
-  left_join(visitNum) %>%
-  # TODO update
-  filter(!is.na(visitNumber))
+#pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
+pine2 <- fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+pine <- fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+#pine <- fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_AllNetwork_2011-2022_20230221.accdb")
+source("cleaningData.R")
+pine <- cleaningPine(pine)
+source("calculations.R")
 ```
 
 
@@ -94,10 +48,9 @@ pine$data$Tree <- pine$data$Tree %>%
 ```{r}
 # avg basal area of plots split by communities/year
 # TODO: add error bars
-source("calculations.R")
-treeDominance <- getDominance(pine$data$Tree)
+treeDominance <- getDominance(pine$data$LiveTrees)
 
-pine$data$Tree %>%
+pine$data$LiveTrees %>%
   getBasalArea() %>%
   # find the total basal area of each locationID
   group_by(locationID, visitNumber, sampleFrame) %>%
@@ -119,9 +72,7 @@ pine$data$Tree %>%
 
 ##### Tree Count
 ```{r}
-source("calculations.R")
-
-countGraph <- pine$data$Tree %>%
+countGraph <- pine$data$LiveTrees %>%
   getTreeCount() %>%
   #filter(locationID == "GRBA_N_002") %>%
   ggplot(aes(x = factor(visitNumber), y = count, fill = factor(speciesCode))) +
@@ -144,7 +95,7 @@ plotly::ggplotly(countGraph)
 # Count of trees / area sampled
 # #/ha
 # Density of every plot
-density <- pine$data$Tree %>%
+density <- pine$data$LiveTrees %>%
   mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 5*(0:(max(treeDBH_cm)/5)))) %>%
   group_by(speciesCode, locationID, visitNumber, sampleFrame, DBHGroup) %>%
   summarise(density = n()/0.25) %>%
@@ -171,7 +122,7 @@ plotly::ggplotly(densityGraph)
 
 ##### Frequency
 ```{r}
-frequencyData <- pine$data$Tree %>%
+frequencyData <- pine$data$LiveTrees %>%
   getFrequency() %>%
   group_by(speciesCode, visitNumber) %>%
   summarise(avgFrequency = mean(frequency)) %>%
@@ -191,9 +142,7 @@ plotly::ggplotly(frequencyData)
 
 ##### Dominance
 ```{r}
-source("calculations.R")
-
-pine$data$Tree %>%
+pine$data$LiveTrees %>%
   getDominance() %>%
   filter(speciesCode != "JUNSCO" & speciesCode != "PINMON" & speciesCode != "UNK") %>%
   ggplot(aes(x = factor(speciesCode), y = dominance, fill = factor(visitNumber))) +
@@ -210,9 +159,7 @@ pine$data$Tree %>%
 
 ##### Relative Density
 ```{r}
-source("calculations.R")
-
-relativeDensityGraph <- pine$data$Tree %>%
+relativeDensityGraph <- pine$data$LiveTrees %>%
   getRelativeDensity() %>%
   #filter(locationID == "GRBA_N_002") %>%
   ggplot(aes(x = factor(visitNumber), y = relativeDensity, fill = factor(speciesCode))) +
@@ -231,8 +178,7 @@ plotly::ggplotly(relativeDensityGraph)
 
 ##### Average Relative Frequency
 ```{r}
-source("calculations.R")
-relativeFrequency <- pine$data$Tree %>% 
+relativeFrequency <- pine$data$LiveTrees %>% 
   getFrequency() %>%
   group_by(speciesCode, visitNumber) %>%
   summarise(avgRelativeFrequency = mean(relativeFrequency)) %>%
@@ -252,8 +198,7 @@ ggplotly(relativeFrequency)
 
 ##### Relative Frequency
 ```{r}
-source("calculations.R")
-relativeFrequency <- pine$data$Tree %>% 
+relativeFrequency <- pine$data$LiveTrees %>% 
   getFrequency() %>%
   filter(speciesCode != "JUNSCO") %>%
   ggplot(aes(x = factor(visitNumber), y = relativeFrequency, fill = factor(speciesCode))) +
@@ -275,7 +220,7 @@ ggplotly(relativeFrequency)
 
 ##### Relative Dominance
 ```{r}
-relDomiance <- pine$data$Tree %>%
+relDomiance <- pine$data$LiveTrees %>%
   getDominance() %>%
   ggplot(aes(x = factor(visitNumber), y = relativeDominance, fill = factor(speciesCode))) +
   geom_col() +
@@ -292,7 +237,7 @@ ggplotly(relDomiance)
 
 ##### Importance Value
 ```{r}
-importanceVal <- pine$data$Tree %>%
+importanceVal <- pine$data$LiveTrees %>%
   getImportanceValue() %>%
   ggplot(aes(x = factor(visitNumber), y = importanceValue, fill = factor(speciesCode))) +
   geom_col() +
@@ -309,7 +254,7 @@ ggplotly(importanceVal)
 
 ##### Tree Height
 ```{r}
-pine$data$Tree %>%
+pine$data$LiveTrees %>%
   filter(speciesCode != "JUNSCO" & speciesCode != "PINMON" & speciesCode != "UNK") %>%
   ggplot(aes(x = factor(speciesCode), y = treeHeight_m, fill = factor(visitNumber))) +
   facet_wrap(~speciesCode, scales="free", drop= TRUE) +
@@ -325,7 +270,7 @@ pine$data$Tree %>%
 
 
 ```{r}
-frequency <- pine$data$Tree %>%
+frequency <- pine$data$LiveTrees %>%
   getFrequency(grouping = sampleFrame)
 ```
 
@@ -336,37 +281,23 @@ frequency <- pine$data$Tree %>%
 ## Dead and Recently Dead Trees
 
 ::: panel-tabset
-
-```{r}
-pineDead <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
-
-pineDead <- pineDead$data$Tree %>%
-  filter(vitality == "Dead" | vitality == "Recently Dead") %>%
-    mutate(uniqueTreeID = paste(locationID, "_", subplot, "_", tag),
-    year = year(as_date(eventDate))) %>%
-  # Join with table containing visit number
-  left_join(visitNum) %>%
-  # TODO update
-  filter(!is.na(visitNumber)) %>%
-  filter(!is.na(treeDBH_cm) & treeDBH_cm != -999 & treeDBH_cm != 999)
-```
 ##### Count
 ```{r}
-countDeadGraph <- pineDead %>%
+countDeadGraph <- pine$data$DeadTrees %>%
   getTreeCount() %>%
   #filter(locationID == "GRBA_N_002") %>%
   ggplot(aes(x = factor(visitNumber), y = count, fill = factor(speciesCode))) +
   geom_col()  +
   facet_wrap(~locationID) + 
   theme_minimal() + 
-  labs(title = "Species Count",
+  labs(title = "Dead Tree Count",
        x = "Visit", y = "Count",
        fill = "Species Code") + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(axis.text.x = element_text(hjust = 0.5)) +
   scale_fill_muted()
 
-plotly::ggplotly(countDeadGraph)
+ggplotly(countDeadGraph)
 ```
 
 
@@ -376,7 +307,7 @@ plotly::ggplotly(countDeadGraph)
 # Count of trees / area sampled
 # #/ha
 # Density of every plot
-densityGraph <- pineDead %>%
+densityGraph <- pine$data$DeadTrees %>%
   #mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 5*(0:(max(treeDBH_cm)/5)))) %>%
   group_by(speciesCode, locationID, visitNumber) %>%
   summarise(density = n()/0.25) %>%
@@ -397,72 +328,91 @@ densityGraph <- pineDead %>%
 densityGraph
 ```
 
+##### Density by Plot
+```{r}
+densityPlotGraph <- pine$data$DeadTrees %>%
+  #mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 5*(0:(max(treeDBH_cm)/5)))) %>%
+  group_by(speciesCode, locationID, visitNumber) %>%
+  summarise(density = n()/0.25) %>%
+  # group_by(speciesCode) %>%
+  # filter(n() > 2) %>%
+  # ungroup() %>%
+  ggplot(aes(x = factor(visitNumber), y = density, fill = factor(speciesCode))) +
+  geom_col() + 
+  facet_wrap(~locationID, scales = "free_y") + 
+  theme_minimal() + 
+  labs(title = "Density by Plot",
+       x = "Species", y = "Density (#/ha)",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
+  scale_fill_light()
+
+ggplotly(densityPlotGraph)
+```
+
+##### Recently Dead Count
+```{r}
+countRecentlyDeadGraph <- pine$data$DeadTrees %>%
+  filter(vitality == "Recently Dead") %>%
+  getTreeCount() %>%
+  #filter(locationID == "GRBA_N_002") %>%
+  ggplot(aes(x = factor(visitNumber), y = count, fill = factor(speciesCode))) +
+  geom_col()  +
+  facet_wrap(~locationID) + 
+  theme_minimal() + 
+  labs(title = "Recently Dead Tree Count",
+       x = "Visit", y = "Count",
+       fill = "Species Code") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_muted()
+
+ggplotly(countRecentlyDeadGraph)
+```
+
+##### Recently Dead Density
+```{r}
+densityRecentlyDead <- pine$data$DeadTrees %>%
+  filter(vitality == "Recently Dead") %>%
+  group_by(speciesCode, locationID, visitNumber) %>%
+  summarise(density = n()/0.25) %>%
+  ggplot(aes(x = factor(visitNumber), y = density, fill = factor(speciesCode))) +
+  geom_col() + 
+  facet_wrap(~locationID, scales = "free_y") + 
+  theme_minimal() + 
+  labs(title = "Density by Plot",
+       x = "Species", y = "Density (#/ha)",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
+  scale_fill_light()
+
+ggplotly(densityRecentlyDead)
+```
+
 
 :::
 
 ## Tree Status and Infestation
 ::: panel-tabset
 
-```{r}
-pineAliveAndDead <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
-
-
-# TODO: move this
-# Calculates the visit number for each visit to a site
-visitNum <- pineAliveAndDead$data$Visit %>%
-  dplyr::filter(repeatSample != 1) %>%
-  dplyr::mutate(year = year(as_date(eventDate))) %>%
-  # TODO: make more robust, would a visit to a panel ever be one year off
-  # so something like make visit year the year the majority of visits are
-  dplyr::select(panel, year)%>%
-  dplyr::group_by(panel, year) %>%
-  dplyr::summarize(n = n()) %>%
-  dplyr::group_by(panel) %>%
-  dplyr::mutate(visitNumber = seq_along(year))
-  # arrange year descending within panel descending
-
-# TODO: ONLY INCLUDES LIVE TREES
-# Cleaning live tree data for wrangling and visualization
-pineAliveAndDead$data$Tree <- pineAliveAndDead$data$Tree %>%
-  # Remove rows where height or DBH that are NA
-  filter(!is.na(treeHeight_m) & treeHeight_m != -999 & treeHeight_m != 999) %>%
-  filter(!is.na(treeDBH_cm) & treeDBH_cm != -999 & treeDBH_cm != 999) %>%
-  mutate(uniqueTreeID = paste(locationID, "_", subplot, "_", tag),
-    year = year(as_date(eventDate))) %>%
-  # Join with table containing visit number
-  left_join(visitNum) %>%
-  # TODO update
-  filter(!is.na(visitNumber))
-```
-
-
 ##### Vitality
-Fix this one
 ```{r}
-# Species, Total, 5cm DBH bins
-# Proportion Live and dead
-
-
-# proportion alive = number alive / total number
-# proportion dead = number dead / total number
-treeVitality <- pineAliveAndDead$data$Tree %>%
-  mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 5*(0:(max(treeDBH_cm)/5)))) %>%
-  group_by(locationID, visitNumber, speciesCode, DBHGroup) %>%
-  summarise(alive = mean(vitality == "Live")*100,
-            #dead = mean(vitality != "Live")*100, 
-            n = n()) %>%
-  #pivot_longer(cols = c(alive, dead), names_to = "vitality") %>%
+# Proportion alive = number alive / total number
+treeVitality <- pine$data$Tree %>%
+  mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 10*(0:(max(treeDBH_cm)/10)))) %>%
   group_by(visitNumber, speciesCode, DBHGroup) %>%
-  summarize(meanProportion = mean(alive)) %>%
-  filter(speciesCode != "JUNSCO" & speciesCode != "PINMON" & speciesCode != "UNK" & speciesCode != "PINPON") %>%
-  #filter(speciesCode == "ABICON") %>%
-  ggplot(aes(x = DBHGroup, y = meanProportion, fill = factor(visitNumber))) +
-  geom_col(position = "dodge") +
-  facet_wrap(~speciesCode, scales = "free_x") + 
+  summarise(alive = mean(vitality == "Live")*100,
+            n = n()) %>%
+  filter(n > 4 & speciesCode != "UNK") %>%
+  ggplot(aes(x = DBHGroup, y = alive, fill = factor(visitNumber))) +
+  geom_col(position = position_dodge(preserve = "single")) +
+  facet_wrap(~speciesCode, scales = "free_x", drop = TRUE) + 
   theme_minimal() + 
   labs(title = "Proportion Alive",
        x = "DBH Group", y = "Proportion",
-       fill = "Vitality") + 
+       fill = "Visit") + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
   scale_fill_light()
@@ -471,11 +421,12 @@ ggplotly(treeVitality)
 ```
 
 
-##### Motrality Cause
+##### Mortality Cause
 ```{r}
 # count of mortality cause by plot
 
-mortalityCause <- pineDead %>%
+mortalityCause <- pine$data$DeadTrees %>%
+  filter(vitality == "Recently Dead") %>%
   group_by(locationID, visitNumber, causeOfDeath) %>%
   summarise(n = n()) %>%
   ggplot(aes(x = factor(visitNumber), y = n, fill = factor(causeOfDeath))) +
@@ -497,7 +448,7 @@ ggplotly(mortalityCause)
 # Mean percent % crown kill from three sections of tree
 # Individual Tree, Species, total
 
-crownKill <- pineAliveAndDead$data$Tree %>%
+crownKill <- pine$data$Tree %>%
   filter(!is.na(crownKill_Upper_percent) & !is.na(crownKill_Mid_percent) & !is.na(crownKill_Lower_percent)) %>%
   rowwise() %>%
   mutate(avgCrownKill = mean(c_across(crownKill_Upper_percent:crownKill_Lower_percent))) %>%
@@ -524,9 +475,9 @@ ggplotly(crownKill)
 # Canker data wrangling
 # TODO: there are no cankers in the data so use test dats with cankers to try out canker graphs 
 
-treeCankerTest <- pineAliveAndDead$data$Tree %>%
+treeCankerTest <- pine$data$Tree %>%
   dplyr::filter(dplyr::if_all((contains("Cank") & !contains("Type")), ~ !is.na(.x))) %>%
-  select(locationID, boleCankers_A_Lower,boleCankers_A_Mid, branchCanks_I_Upper, branchCanks_I_Mid, visitNumber, speciesCode) %>%
+  select(locationID, boleCankers_A_Lower,boleCankers_A_Mid, branchCanks_I_Upper, branchCanks_I_Mid, visitNumber, speciesCode, treeDBH_cm) %>%
   slice(1:500)
 
 
@@ -700,19 +651,23 @@ ggplotly(cankerPercent)
 
 # TODO White pine species, 5cm DBH bins
 activeCankerDensity <-  cankers %>%
-  group_by(visitNumber, speciesCode, anyCankers, locationID) %>%
+  mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 5*(0:(max(treeDBH_cm)/5)))) %>%
+  group_by(visitNumber, speciesCode, anyCankers, locationID, DBHGroup) %>%
   summarise(plotDensity = n()/0.25) %>%
-  group_by(visitNumber, speciesCode, anyCankers) %>%
+  group_by(visitNumber, speciesCode, anyCankers, DBHGroup) %>%
   summarise(avgDensity = mean(plotDensity)) %>%
-  ggplot(aes(x = factor(visitNumber), y = avgDensity, fill = anyCankers)) +
-  geom_col() +
-  facet_wrap(~speciesCode) + 
+  filter(anyCankers != "N") %>%
+  ggplot(aes(x = factor(DBHGroup), y = avgDensity, color = factor(visitNumber), group = factor(visitNumber))) +
+  geom_point() +
+  geom_line() +
+  #geom_col() +
+  facet_wrap(~speciesCode, scales = "free") + 
   theme_minimal() + 
   labs(title = "Canker Density",
        x = "Visit", y = "Density (#/ha)",
        fill = "Cankers") + 
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
   scale_fill_light()
   #scale_fill_discrete(type = ())
 
@@ -721,7 +676,7 @@ ggplotly(activeCankerDensity)
 
 ```{r}
 # Data wrangling to create one pine beetle marker
-pineBeetles <- pineAliveAndDead$data$Tree %>%
+pineBeetles <- pine$data$Tree %>%
   # Filter out any beetle rows that contains a NA
   dplyr::filter(dplyr::if_all((contains("Cank") & !contains("Type")), ~ !is.na(.x))) %>%
   mutate(pineBeetle = case_when(
@@ -788,7 +743,7 @@ ggplotly(beetleDensity)
 ##### Dwarf Mistletoe Percent
 ```{r}
 
-mistletoePercent <- pineAliveAndDead$data$Tree %>%
+mistletoePercent <- pine$data$Tree %>%
   filter(!is.na(mistletoe) & mistletoe != "ND") %>%
   group_by(speciesCode, visitNumber) %>%
   summarise(percent = mean(mistletoe == 'Y')*100,
@@ -812,7 +767,7 @@ ggplotly(mistletoePercent)
 # number/ha
 # Density of trees with mistletoe
 
-mistletoeDensity <- pineAliveAndDead$data$Tree %>%
+mistletoeDensity <- pine$data$Tree %>%
   filter(!is.na(mistletoe) & mistletoe != "ND") %>%
   group_by(speciesCode, locationID, visitNumber) %>%
   summarise(density = n()/0.25,
@@ -835,7 +790,7 @@ ggplotly(mistletoeDensity)
 
 ##### Female Cone Percent
 ```{r}
-femaleConePercent <- pineAliveAndDead$data$Tree %>%
+femaleConePercent <- pine$data$Tree %>%
   filter(!is.na(femaleCones)) %>%
   group_by(locationID, speciesCode, visitNumber) %>%
   summarise(percent = mean(femaleCones == "Y")*100,
@@ -861,7 +816,7 @@ ggplotly(femaleConePercent)
 # number/ha
 # Density of trees with female cones
 
-femaleConeDensity <- pineAliveAndDead$data$Tree %>%
+femaleConeDensity <- pine$data$Tree %>%
   filter(!is.na(femaleCones)) %>%
   group_by(speciesCode, locationID, visitNumber) %>%
   summarise(density = sum(femaleCones == "Y")/0.25,
@@ -886,7 +841,7 @@ ggplotly(femaleConeDensity)
 ```{r}
 # species, plot
 
-coneCount <- pineAliveAndDead$data$Tree %>%
+coneCount <- pine$data$Tree %>%
   filter(!is.na(coneCount) & coneCount != -999 & coneCount != 999) %>%
   group_by(speciesCode, locationID, visitNumber) %>%
   summarise(totalConeCount = sum(coneCount)) %>%
