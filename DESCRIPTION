@@ -8,9 +8,11 @@ License: CC0
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
-Imports: 
+Imports:
     DPchecker (>= 0.3.0),
-    fetchaccess (>= 0.1.0)
+    dplyr,
+    fetchaccess (>= 0.1.0),
+    readr
 Remotes: 
     wright13/imd-fetchaccess-package,
     nationalparkservice/DPchecker
