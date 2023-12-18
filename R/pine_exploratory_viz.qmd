@@ -12,7 +12,7 @@ execute:
 ```{r}
 #| echo: false
 #| output: false
-
+library(tidyverse)
 library(leaflet)
 library(fiveneedlepine)
 library(plotly)
@@ -20,22 +20,19 @@ library(lubridate)
 library(RColorBrewer)
 library(QCkit)
 library(sp)
-library(raster)
-#library(terra)
-library(tidyverse)
+# library(raster)
+
 ```
 
 ```{r}
 #| output: false
-data_dir = here::here("data")
-# TODO: change to relative directory
-pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
+pine <- fiveneedlepine::loadPine(here::here("FNP_MOJN_Primary.accdb"))
 
  
   
 # Remove seedling plots with no seedlings
 pine$data$Seedling <- pine$data$Seedling %>%
-  filter(speciesCode != "_NONE") %>%
+  filter(scientificName != "_NONE") %>%
   # Make a unique identifier for all seedlings
   mutate(uniqueSeedlingID = paste0(locationID, "_", tag)) 
 
@@ -94,13 +91,13 @@ sitesData <- pine$data$Site %>%
 ## Seedling Graphs
 
 ::: panel-tabset
-
 ### Species
+
 ```{r}
 # Seedling species by year
 seedlingSpecs <- pine$data$Seedling %>%
   ggplot(aes(x = factor(year(as_datetime(eventDate))))) + 
-  geom_bar(aes( fill = factor(speciesCode))) +
+  geom_bar(aes( fill = factor(scientificName))) +
   theme_minimal() + 
   labs(title = "Seedling Species",
        x = "Year", y = "Count",
@@ -113,10 +110,11 @@ ggplotly(seedlingSpecs)
 ```
 
 ### Community
+
 ```{r}
 # height of seedling by elevation or latitude
 seedlingHeight <- pine$data$Seedling %>%
-  dplyr::select(locationID, eventDate, speciesCode, heightClass, eventID) %>%
+  dplyr::select(locationID, eventDate, scientificName, heightClass, eventID) %>%
   dplyr::mutate(heightClass = case_when(
     heightClass == "ND" ~ NA,
     .default = heightClass)) %>%
@@ -139,6 +137,7 @@ ggplotly(seedlingHeightGraph)
 ```
 
 ### Height Percent
+
 ```{r}
 # Graph percent of each height class for each elevation group
 # TODO: reorder graph so smallest height class is at the bottom
@@ -160,14 +159,15 @@ ggplotly(seedlingPercentGraph)
 ```
 
 ### Seedlings by Site
+
 ```{r}
 # Number of seedlings per site
 # TODO if a seedling is listed in more than one year it is counted twice
 seedingSiteGraph <- pine$data$Seedling %>%
   full_join(pine$data$Site, by = "locationID") %>%
-  group_by(locationID, speciesCode)  %>%
+  group_by(locationID, scientificName)  %>%
   summarise(count = n()) %>%
-  ggplot(aes(x = factor(locationID), y=count, fill = speciesCode)) +
+  ggplot(aes(x = factor(locationID), y=count, fill = scientificName)) +
   geom_col() + 
   theme_minimal() + 
   labs(title = "Seedling Species by Site",
@@ -178,25 +178,23 @@ seedingSiteGraph <- pine$data$Seedling %>%
 
 ggplotly(seedingSiteGraph)
 ```
-
-
 :::
 
 ## Tree Graphs
 
 ::: panel-tabset
-
 ##### Latitude
+
 ```{r}
 # Plot of Percentage of Tree Species by UTM Northing
 # TODO: could add count in the popup when you mouse over a section of the graph
 # TODO: could change it from UTM Northing to elevation
 # Data wrangling to create percent of species for each UTM Northing
 tree_pct <- pine$data$Tree %>%
-  dplyr::select(locationID, eventID, speciesCode) %>%
+  dplyr::select(locationID, eventID, scientificName) %>%
   full_join(pine$data$Site, by = "locationID") %>%
-  dplyr::select(locationID, eventID, speciesCode, primaryCornerYCoord) %>%
-  group_by(primaryCornerYCoord, speciesCode) %>%
+  dplyr::select(locationID, eventID, scientificName, primaryCornerYCoord) %>%
+  group_by(primaryCornerYCoord, scientificName) %>%
   summarize(speciesCount = n()) %>%
   group_by(primaryCornerYCoord) %>%
   mutate(percent = speciesCount/sum(speciesCount)*100)
@@ -204,7 +202,7 @@ tree_pct <- pine$data$Tree %>%
 # Graph of Tree Species by UTM Northing
 tree_pct_plot <- tree_pct %>%
   ggplot(aes(x = factor(primaryCornerYCoord))) +
-  geom_bar(aes(y = percent, fill = factor(speciesCode)), stat = "identity", postion = "stack") + 
+  geom_bar(aes(y = percent, fill = factor(scientificName)), stat = "identity", postion = "stack") + 
   theme_minimal() + 
   labs(title = "Tree Species by UTM Northing",
        x = "UTM Northing", y = "Percent",
@@ -216,14 +214,15 @@ ggplotly(tree_pct_plot)
 ```
 
 ##### Community
+
 ```{r}
 # Graph of tree count by elevation group
 # TODO: chnage from elevation group to community
 treeElevation2Graph <- pine$data$Tree %>%
-  dplyr::select(locationID, eventID, speciesCode) %>%
+  dplyr::select(locationID, eventID, scientificName) %>%
   # Join with sites table to get lat long
   full_join(sitesData, by = "locationID") %>%
-  ggplot(aes(x = factor(sampleFrame), fill = as.factor(speciesCode))) +
+  ggplot(aes(x = factor(sampleFrame), fill = as.factor(scientificName))) +
   geom_bar(stat = "count") + 
   theme_minimal() + 
   labs(title = "Tree Count",
@@ -236,6 +235,7 @@ ggplotly(treeElevation2Graph)
 ```
 
 ##### Infestation
+
 ```{r}
 # Count the number of each type of infestation for each year
 # TODO: what are branch cankers A and I? Also I think we could group the bole cankers and branch cankers into one group each probably (or two depending on what A and I mean)
@@ -266,6 +266,7 @@ ggplotly(infestationGraph)
 ```
 
 ##### Mistletoe
+
 ```{r}
 # Mistletoe infestation by year
 pine$data$Tree %>% ggplot(aes(x = factor(year(eventDate)), fill = mistletoe))  + 
@@ -281,6 +282,7 @@ pine$data$Tree %>% ggplot(aes(x = factor(year(eventDate)), fill = mistletoe))  +
 ```
 
 ##### Vitality
+
 ```{r}
 # Tree status by Year
 pine$data$Tree %>%
@@ -296,6 +298,7 @@ pine$data$Tree %>%
 ```
 
 ##### Height
+
 ```{r}
 # Tree Height
 # TODO Label tree height categories
@@ -316,6 +319,7 @@ ggplotly(treeHeightGraph)
 ```
 
 ##### DBH
+
 ```{r}
 # Count of trees by DBH group 
 treeDBHGraph <- pine$data$Tree %>%
@@ -335,6 +339,7 @@ ggplotly(treeDBHGraph)
 ```
 
 ##### Cause of Death
+
 ```{r}
 # Graph of the death types each year
 causeOfDeathGraph <- pine$data$Tree %>%
@@ -353,6 +358,7 @@ ggplotly(causeOfDeathGraph)
 ```
 
 ##### Height by Species
+
 ```{r}
 # Box plot of the heights of different species
 heightBySpeciesGraph <- pine$data$Tree %>%
@@ -360,7 +366,7 @@ heightBySpeciesGraph <- pine$data$Tree %>%
     (treeHeight_m == -999 | treeHeight_m == 999) ~ NA,
     .default = treeHeight_m)) %>%
   filter(!is.na(treeHeight_m)) %>%
-  ggplot(aes(x = speciesCode, y = treeHeight_m, fill = speciesCode)) +
+  ggplot(aes(x = scientificName, y = treeHeight_m, fill = scientificName)) +
   geom_boxplot() + 
   theme_minimal() + 
   labs(title = "Tree Height",
@@ -373,11 +379,12 @@ ggplotly(heightBySpeciesGraph)
 ```
 
 ##### Dead Species
+
 ```{r}
 # Recently dead species by year
 speciesDeadGraph <- pine$data$Tree %>%
   filter(vitality == "Recently Dead") %>%
-  ggplot(aes(x = factor(year(as_date(eventDate))), fill = speciesCode)) +
+  ggplot(aes(x = factor(year(as_date(eventDate))), fill = scientificName)) +
   geom_bar() + 
   # TODO: delete empty columns
   facet_wrap(~panel, scales="free_x") + 
@@ -390,9 +397,7 @@ speciesDeadGraph <- pine$data$Tree %>%
 
 ggplotly(speciesDeadGraph)
 ```
-
 :::
-
 
 ```{r}
 # TODO:
@@ -400,4 +405,3 @@ ggplotly(speciesDeadGraph)
 # remove duplicates from graph (for example most/all trees are counted twice)
 # coarser bins for DBH in individual site DASHBOARD
 ```
-

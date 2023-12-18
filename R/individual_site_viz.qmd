@@ -9,8 +9,7 @@ server: shiny
 ::: {.panel-sidebar}
 ```{r}
 #vars <- setdiff(names(iris), "Species")
-data_dir = here::here("data")
- pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
+pine <- fiveneedlepine::loadPine(here::here("FNP_MOJN_Primary.accdb"))
 selectInput('siteCode', 'Site Code', pine$data$Site[['locationID']])
 #selectInput('ycol', 'Y Variable', vars, selected = vars[[2]])
 #numericInput('clusters', 'Cluster count', 3, min = 1, max = 9)
@@ -71,7 +70,7 @@ plotlyOutput('conePresencePlot')
 #| context: server
 library(tidyverse)
 library(plotly)
-pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
+pine <- fiveneedlepine::loadPine("../FNP_MOJN_Primary.accdb")
 
 
 
@@ -86,7 +85,7 @@ output$titleText <- renderText({paste0("Selected Site: ", input$siteCode)})
 output$treeStatusPlot <- renderPlotly({
   oneSiteVitality <- pine$data$Tree %>%
   filter(locationID == input$siteCode) %>%
-  ggplot(aes(x = factor(year(as_date(eventDate))), fill = vitality)) +
+  ggplot(aes(x = factor(lubridate::year(eventDate)), fill = vitality)) +
   geom_bar() + 
   theme_minimal() + 
   labs(title = "Tree Vitality by Year",
@@ -103,11 +102,11 @@ output$treeStatusPlot <- renderPlotly({
 output$coneCountPlot <- renderPlotly({
   coneCountGraph <- pine$data$Tree %>%
     filter(locationID == input$siteCode) %>%
-    mutate(year = year(as_date(eventDate))) %>%
+    mutate(year = lubridate::year(eventDate)) %>%
     filter(!is.na(coneCount) & coneCount != -999 & coneCount != 999) %>%
-    group_by(year, speciesCode) %>%
+    group_by(year, scientificName) %>%
     summarise(coneCountTotal = sum(coneCount)) %>%
-    ggplot(aes(x = factor(year),y = coneCountTotal, fill = speciesCode)) +
+    ggplot(aes(x = factor(year),y = coneCountTotal, fill = scientificName)) +
     geom_col() + 
     theme_minimal() + 
     labs(title = "Cone Count",
@@ -125,7 +124,7 @@ output$treeHeightPlot <- renderPlotly({
     filter(locationID == input$siteCode) %>%
     filter(!is.na(treeHeight_m) & treeHeight_m != -999 & treeHeight_m != 999) %>%
     mutate(heightGroup = cut(x = treeHeight_m, breaks = 2*(0:(max(treeHeight_m)/2)))) %>%
-    mutate(year = factor(year(as_date(eventDate)))) %>%
+    mutate(year = factor(lubridate::year(eventDate))) %>%
     group_by(heightGroup, year) %>%
     summarise(count = n()) %>%
     ggplot(aes(x = heightGroup, y = count, color = year)) +
@@ -148,7 +147,7 @@ output$treeDBHPlot <- renderPlotly({
     filter(locationID == input$siteCode) %>%
     filter(!is.na(treeDBH_cm) & treeDBH_cm != -999 & treeDBH_cm != 999) %>%
     mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 5*(0:(max(treeDBH_cm)/5)))) %>%
-    mutate(year = factor(year(as_date(eventDate)))) %>%
+    mutate(year = factor(lubridate::year(eventDate))) %>%
     group_by(DBHGroup, year) %>%
     summarise(count = n()) %>%
     ggplot(aes(x = DBHGroup, y = count, color = year)) +
@@ -169,7 +168,7 @@ output$treeDBHPlot <- renderPlotly({
 output$conePresencePlot <- renderPlotly({
   coneGraph <- pine$data$Tree %>%
     filter(locationID == input$siteCode) %>%
-    mutate(year = year(as_date(eventDate))) %>%
+    mutate(year = lubridate::year(eventDate)) %>%
     filter(!is.na(femaleCones)) %>%
     group_by(year, femaleCones) %>%
     summarise(coneTotal = n()) %>%
@@ -189,10 +188,10 @@ output$conePresencePlot <- renderPlotly({
 output$seedlingCountPlot <- renderPlotly({
   seedlingCount <- pine$data$Seedling %>%
     filter(locationID == input$siteCode) %>%
-    mutate(year = factor(year(as_date(eventDate)))) %>%
-    group_by(year, speciesCode) %>%
+    mutate(year = factor(lubridate::year(eventDate))) %>%
+    group_by(year, scientificName) %>%
     summarise(count = n()) %>%
-    ggplot(aes(x = year, y = count, fill = speciesCode)) +
+    ggplot(aes(x = year, y = count, fill = scientificName)) +
     geom_col() +
     theme_minimal() +
     labs(title = "Seedling Count",
@@ -210,12 +209,12 @@ output$aliveSpeciesPlot <- renderPlotly({
   treeSpeciesPercent <- pine$data$Tree %>%
     filter(locationID == input$siteCode) %>%
     filter(vitality == "Live") %>%
-    mutate(year = year(as_date(eventDate))) %>%
-    group_by(speciesCode, year) %>%
+    mutate(year = lubridate::year(eventDate)) %>%
+    group_by(scientificName, year) %>%
     summarize(speciesCount = n()) %>%
     group_by(year) %>%
     mutate(percent = speciesCount/sum(speciesCount)*100) %>%
-    ggplot(aes(x = factor(year), y = percent, fill = speciesCode)) +
+    ggplot(aes(x = factor(year), y = percent, fill = scientificName)) +
     geom_col() +
     theme_minimal() +
     labs(title = "Alive Tree Species",
@@ -233,12 +232,12 @@ output$deadSpeciesPlot <- renderPlotly({
   treeSpeciesPercent2 <- pine$data$Tree %>%
     filter(locationID == input$siteCode) %>%
     filter(vitality == "Dead" | vitality == "Recently Dead") %>%
-    mutate(year = year(as_date(eventDate))) %>%
-    group_by(speciesCode, year) %>%
+    mutate(year = lubridate::year(eventDate)) %>%
+    group_by(scientificName, year) %>%
     summarize(speciesCount = n()) %>%
     group_by(year) %>%
     mutate(percent = speciesCount/sum(speciesCount)*100) %>%
-    ggplot(aes(x = factor(year), y = percent, fill = speciesCode)) +
+    ggplot(aes(x = factor(year), y = percent, fill = scientificName)) +
     geom_col() +
     theme_minimal() +
     labs(title = "Dead Tree Species",
@@ -255,7 +254,7 @@ output$deadSpeciesPlot <- renderPlotly({
 output$seedlingHeightClassPlot <- renderPlotly({
   seedlingHeight <- pine$data$Seedling %>%
   filter(locationID == input$siteCode) %>%
-  mutate(year = year(as_date(eventDate)),
+  mutate(year = lubridate::year(eventDate),
          heightClass = factor(heightClass)) %>%
   group_by(heightClass, year) %>%
   summarize(heightGroupCount = n()) %>%
