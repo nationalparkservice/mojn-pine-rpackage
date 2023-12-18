@@ -12,6 +12,7 @@ Imports:
     DPchecker (>= 0.3.0),
     dplyr,
     fetchaccess (>= 0.1.0),
+    magrittr,
     readr
 Remotes: 
     wright13/imd-fetchaccess-package,

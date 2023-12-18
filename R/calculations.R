@@ -16,15 +16,15 @@ getBasalArea <- function(filteredData, siteCode){
 }
 
 
-# TODO: move this
-# Calculates the visit number for each visit to a site
-visitNum <- pine$data$Visit %>%
-  dplyr::mutate(year = year(as_date(eventDate))) %>%
-  # TODO: make more robust, would a visit to a panel ever be one year off
-  # so something like make visit year the year the majority of visits are
-  dplyr::select(panel, year)%>%
-  dplyr::group_by(panel, year) %>%
-  dplyr::summarize(n = n()) %>%
-  dplyr::group_by(panel) %>%
-  dplyr::mutate(visitNumber = seq_along(year))
-  # arange year descending within panel descending
+# # TODO: move this
+# # Calculates the visit number for each visit to a site
+# visitNum <- pine$data$Visit %>%
+#   dplyr::mutate(year = year(as_date(eventDate))) %>%
+#   # TODO: make more robust, would a visit to a panel ever be one year off
+#   # so something like make visit year the year the majority of visits are
+#   dplyr::select(panel, year)%>%
+#   dplyr::group_by(panel, year) %>%
+#   dplyr::summarize(n = n()) %>%
+#   dplyr::group_by(panel) %>%
+#   dplyr::mutate(visitNumber = seq_along(year))
+#   # arange year descending within panel descending
