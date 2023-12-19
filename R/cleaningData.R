@@ -21,7 +21,7 @@ cleaningPine <- function(pine){
 
   pine$data$Seedling <- pine$data$Seedling %>%
     # Remove seedling plots with no seedlings
-    dplyr::filter(speciesCode != "_NONE") %>%
+    # dplyr::filter(speciesCode != "_NONE") %>%
     # Make a unique identifier for all seedlings
     dplyr::mutate(uniqueSeedlingID = paste0(locationID, "_", tag))
 
@@ -35,9 +35,12 @@ cleaningPine <- function(pine){
     dplyr::select(-uniqueSeedlingID) %>%
     dplyr::mutate(year = year(as_date(eventDate))) %>%
     # Join with table containing visit number
-    dplyr::left_join(visitNum) %>%
+    dplyr::left_join(visitNum, by = join_by(panel, year)) %>%
     dplyr::filter(!is.na(visitNumber))
 
+  # Order the height classes in the correct order
+  pine$data$Seedling$heightClass <- factor(pine$data$Seedling$heightClass,
+                                        levels =c("20 - <50 cm", "50 - <100 cm", "100 - <137 cm"))
 
   # Tree Data Wrangling
 
@@ -54,7 +57,7 @@ cleaningPine <- function(pine){
   pine$data$Tree <- pine$data$Tree %>%
     dplyr::filter(!(uniqueTreeID %in% pulledTrees$uniqueTreeID)) %>%
     # Join with table containing visit number
-    dplyr::left_join(visitNum) %>%
+    dplyr::left_join(visitNum, by = join_by(panel, year)) %>%
     # TODO update
     dplyr::filter(!is.na(visitNumber)) %>%
     # Remove rows where DBH is NA so calculations can be performed
@@ -72,54 +75,4 @@ cleaningPine <- function(pine){
     dplyr::filter(vitality == "Dead" | vitality == "Recently Dead")
 
   return(pine)
-  # # Cleaning live tree data for wrangling and visualization
-  # pine$data$LiveTrees <- pine$data$Tree %>%
-  #   # Remove all dead trees
-  #   filter(vitality == "Live") %>%
-  #   # Remove rows where height or DBH that are NA so calculations can be performed
-  #   filter(!is.na(treeHeight_m) & treeHeight_m != -999 & treeHeight_m != 999) %>%
-  #   filter(!is.na(treeDBH_cm) & treeDBH_cm != -999 & treeDBH_cm != 999) %>%
-  #   mutate(uniqueTreeID = paste(locationID, "_", subplot, "_", tag))
-  #
-  # pineDead <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
-  #
-  # pineDead <- pineDead$data$Tree %>%
-  #   filter(vitality == "Dead" | vitality == "Recently Dead") %>%
-  #   mutate(uniqueTreeID = paste(locationID, "_", subplot, "_", tag),
-  #          year = year(as_date(eventDate))) %>%
-  #   # Join with table containing visit number
-  #   left_join(visitNum) %>%
-  #   # TODO update
-  #   filter(!is.na(visitNumber)) %>%
-  #   filter(!is.na(treeDBH_cm) & treeDBH_cm != -999 & treeDBH_cm != 999)
-  #
-  # pineAliveAndDead <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
-  #
-  #
-  # # TODO: move this
-  # # Calculates the visit number for each visit to a site
-  # visitNum <- pineAliveAndDead$data$Visit %>%
-  #   dplyr::filter(repeatSample != 1) %>%
-  #   dplyr::mutate(year = year(as_date(eventDate))) %>%
-  #   # TODO: make more robust, would a visit to a panel ever be one year off
-  #   # so something like make visit year the year the majority of visits are
-  #   dplyr::select(panel, year)%>%
-  #   dplyr::group_by(panel, year) %>%
-  #   dplyr::summarize(n = n()) %>%
-  #   dplyr::group_by(panel) %>%
-  #   dplyr::mutate(visitNumber = seq_along(year))
-  # # arrange year descending within panel descending
-  #
-  # # TODO: ONLY INCLUDES LIVE TREES
-  # # Cleaning live tree data for wrangling and visualization
-  # pineAliveAndDead$data$Tree <- pineAliveAndDead$data$Tree %>%
-  #   # Remove rows where height or DBH that are NA
-  #   filter(!is.na(treeHeight_m) & treeHeight_m != -999 & treeHeight_m != 999) %>%
-  #   filter(!is.na(treeDBH_cm) & treeDBH_cm != -999 & treeDBH_cm != 999) %>%
-  #   mutate(uniqueTreeID = paste(locationID, "_", subplot, "_", tag),
-  #          year = year(as_date(eventDate))) %>%
-  #   # Join with table containing visit number
-  #   left_join(visitNum) %>%
-  #   # TODO update
-  #   filter(!is.na(visitNumber))
 }

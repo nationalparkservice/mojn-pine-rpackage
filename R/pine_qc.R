@@ -8,8 +8,6 @@
 # TODO: we can get rid of summmary table and might be able to get rid of exporting to excel
 # TODO: should we restructure into more smaller functions??
 # TODO: if something is commented out from FNP_Validation_20211110.R I didn't include it
-# TODO: some checks had vitality != 'M', but that's not a category in the lookup table
-
 
 
 #' Returns any events with no photo, seedling, and/or tree data
