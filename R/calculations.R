@@ -23,7 +23,7 @@ getDominance <- function(treeData, plotArea = 2500, grouping = locationID){
     getBasalArea() %>%
     dplyr::group_by({{grouping}}, visitNumber) %>%
     # Find the number of plots in the grouping variable
-    dplyr::mutate(numberOfPlots = n_distinct(locationID)) %>%
+    dplyr::mutate(numberOfPlots = dplyr::n_distinct(locationID)) %>%
     # Find the total dominance of each grouping
     dplyr::mutate(totalDominance = sum(basalArea)/((numberOfPlots*plotArea)/10000)) %>%
     dplyr::ungroup() %>%
@@ -34,22 +34,6 @@ getDominance <- function(treeData, plotArea = 2500, grouping = locationID){
     dplyr::summarise(dominance = round(sum(basalArea)/((first(numberOfPlots)*plotArea)/10000), 2)) %>%
     # Find relative density
     mutate(relativeDominance = round(dominance/totalDominance*100, 2))
-
-  # # switch from area sampled to actually finding the number of plots in group and using that number
-  # domincanceData <- treeData %>%
-  #   getBasalArea() %>%
-  #   group_by({{grouping}}, visitNumber) %>%
-  #   # Find the number of plots in the grouping variable
-  #   mutate(numberOfPlots = n_distinct(locationID)) %>%
-  #   group_by({{grouping}}, visitNumber, numberOfPlots) %>%
-  #   # Find the total dominance of each grouping
-  #   mutate(totalDominance = sum(basalArea)/((numberOfPlots*areaSampled)/10000)) %>%
-  #   group_by(speciesCode, {{grouping}}, visitNumber, totalDominance, numberOfPlots) %>%
-  #   # Find the dominance for each species in each grouping
-  #   # divide by 10000 to convert m^2 to hectares
-  #   summarize(dominance = sum(basalArea)/((numberOfPlots*areaSampled)/10000)) %>%
-  #   # Find relative density
-  #   mutate(relativeDominance = round(dominance/totalDominance*100, 2))
 
   return(dominanceData)
 
@@ -76,19 +60,20 @@ getDensityDBH <- function(treeData, areaSampled = 2500){
 }
 
 #' Finds the density and relative density of species within a specified variable per hectare
-#' @param areaSampled the area of the area sampled in m^2, default is 2500
+#' @param areaSampled the area of the plots sampled in m^2, default is 2500
 #' @param grouping the variable you want to find the relative density of (eg. locationID or park)
-getRelativeDensity <- function(treeData, areaSampled = 2500, grouping = locationID){
+getRelativeDensity <- function(treeData, plotArea = 2500, grouping = locationID){
 
   relativeDensity <- treeData %>%
-    group_by({{grouping}}, visitNumber) %>%
-    mutate(plotDensity = n()/(areaSampled/10000)) %>%
-    ungroup() %>%
-    group_by({{grouping}}, visitNumber, speciesCode) %>%
-    mutate(density = n()/(areaSampled/10000)) %>%
-    group_by({{grouping}}, visitNumber, speciesCode, density, plotDensity) %>%
-    summarise(n = n()) %>%
-    summarise(relativeDensity = round(density/plotDensity*100, 2))
+    dplyr::group_by({{grouping}}, visitNumber) %>%
+    dplyr::mutate(numberOfPlots = dplyr::n_distinct(locationID)) %>%
+    dplyr::mutate(plotDensity = n()/(numberOfPlots*plotArea/10000)) %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by({{grouping}}, visitNumber, speciesCode) %>%
+    dplyr::mutate(density = n()/(numberOfPlots*plotArea/10000)) %>%
+    dplyr::group_by({{grouping}}, visitNumber, speciesCode, density, plotDensity) %>%
+    dplyr::summarise(n = n()) %>%
+    dplyr::summarise(relativeDensity = round(density/plotDensity*100, 2))
 
     return(relativeDensity)
 }
@@ -98,8 +83,9 @@ getRelativeDensity <- function(treeData, areaSampled = 2500, grouping = location
 getTreeCount <- function(treedata, grouping = locationID){
 
   treeCount <- treedata %>%
-    group_by({{grouping}}, speciesCode, visitNumber) %>%
-    summarise(count = n())
+    dplyr::group_by({{grouping}}, speciesCode, visitNumber) %>%
+    dplyr::summarise(count = n()) %>%
+    dplyr::ungroup()
 
   return(treeCount)
 }
@@ -113,21 +99,21 @@ getFrequency <- function(treeData, transectArea = 500, plotArea = 2500, grouping
 
   frequency <- treeData %>%
     # create a ID so all subplots across the sections (locationID, park, etc) are unique
-    mutate(uniqueSubPlotNum = paste0(locationID, "_", subplot)) %>%
-    group_by({{grouping}}, visitNumber) %>%
+    dplyr::mutate(uniqueSubPlotNum = paste0(locationID, "_", subplot)) %>%
+    dplyr::group_by({{grouping}}, visitNumber) %>%
     # Find out how many plots are in the grouping variable
-    mutate(numberOfPlots = n_distinct(locationID)) %>%
-    group_by({{grouping}}, speciesCode, visitNumber, numberOfPlots) %>%
+    dplyr::mutate(numberOfPlots = dplyr::n_distinct(locationID)) %>%
+    dplyr::group_by({{grouping}}, speciesCode, visitNumber, numberOfPlots) %>%
     # Calculate frequency for each species in a section
-    summarise(frequency = (n_distinct(uniqueSubPlotNum)*transectArea)/(n_distinct(locationID)*plotArea)*100) %>%
-    ungroup() %>%
-    group_by({{grouping}}, visitNumber, numberOfPlots) %>%
+    dplyr::summarise(frequency = (dplyr::n_distinct(uniqueSubPlotNum)*transectArea)/(first(numberOfPlots)*plotArea)*100) %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by({{grouping}}, visitNumber, numberOfPlots) %>%
     # Calculate total frequency for each section which = sum of all the frequencies in the section
-    mutate(totalFrequency = sum(frequency)) %>%
-    ungroup() %>%
-    group_by({{grouping}}, speciesCode, visitNumber, numberOfPlots) %>%
+    dplyr::mutate(totalFrequency = sum(frequency)) %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by({{grouping}}, speciesCode, visitNumber, numberOfPlots) %>%
     # Calculate relative frequency for each species in a section
-    mutate(relativeFrequency = round(frequency/totalFrequency*100, 2))
+    dplyr::mutate(relativeFrequency = round(frequency/totalFrequency*100, 2))
 
   return(frequency)
 }
