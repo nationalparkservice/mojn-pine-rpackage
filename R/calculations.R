@@ -49,12 +49,19 @@ getDensityDBH <- function(treeData, areaSampled = 2500){
 
   densityData <- treeData %>%
     mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 5*(0:(max(treeDBH_cm)/5)))) %>%
+    group_by(locationID, visitNumber) %>%
+    # Calculate how many plots are in the grouping
+    mutate(numberOfPlots = n_distinct(locationID)) %>%
     group_by(speciesCode, locationID, visitNumber, DBHGroup) %>%
     # Find the density for each species, plot, DBHGroup and year combo
-    summarise(density = n()/(areaSampled/10000)) %>%
+    summarise(density = n()/(first(numberOfPlots)*0.25)) %>%
+    group_by(visitNumber) %>%
+    # Calculate how many plots in each visit
+    mutate(totalPlots = n_distinct(locationID)) %>%
     # Average density for each species, year, DBHGroup
     group_by(speciesCode, DBHGroup, visitNumber) %>%
-    summarise(avgDensity = mean(density))
+    # Include all plots in average, not just ones with that speciesCode/DBHGroup
+    summarise(avgDensity = sum(density)/first(totalPlots))
 
   return(densityData)
 }

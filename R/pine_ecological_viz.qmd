@@ -3,6 +3,7 @@ title: "Ecological Metrics"
 format: 
   html:
     page-layout: custom
+    embed-resources: true
 editor: visual
 execute: 
   echo: false
@@ -25,9 +26,7 @@ text-align: center;
 ::: g-col-8
 ```{r}
 # TODO: color blind palettes really only support 9 categories
-# TODO: add warnings/errors to calculation functions if the input data is not clean
 # TODO: update all network database and point to it
-# TODO: turn new (all tree) graphs into functions if useful and make them able to scale up
 # TODO: update density functions
 # TODO: is it possible to import which species are FNP species
 # TODO: update functions so they use get_data() instead of having to input data manually
@@ -72,13 +71,12 @@ pine$data$Site <- pine$data$Site %>%
 map <- leaflet() %>%
   addTiles() %>%
   setView(-114.25, 38.88, zoom = 9.75) %>%
-  addCircleMarkers(lng = pine$data$Site$decimalLongitude, lat = pine$data$Site$decimalLatitude, stroke = FALSE, fillOpacity = 0.75, fillColor = "#0000a5", popup = paste0(pine$data$Site$locationID, "\n", "Community: ", pine$data$Site$sampleFrame))
+  addCircleMarkers(lng = pine$data$Site$decimalLongitude, lat = pine$data$Site$decimalLatitude, stroke = FALSE, fillOpacity = 0.75, fillColor = "#0000a5", popup = paste0(pine$data$Site$locationID, "\n", "Community: ", pine$data$Site$sampleFrame), radius = 8)
 ```
 
 ```{r}
 map
 ```
-
 
 ## Live Trees by Plot
 
@@ -135,17 +133,8 @@ plotly::ggplotly(countGraph)
 # Count of trees / area sampled
 # #/ha
 
-
-# Density of every plot
-density <- pine$data$LiveTrees %>%
-  mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 5*(0:(max(treeDBH_cm)/5)))) %>%
-  group_by(speciesCode, locationID, visitNumber, sampleFrame, DBHGroup) %>%
-  summarise(density = n()/0.25) %>%
-  # Mean dencity
-  group_by(speciesCode, DBHGroup, visitNumber) %>%
-  summarise(avgDensity = mean(density))
-
-densityGraph <- density %>%
+densityGraph <- pine$data$LiveTrees %>%
+  getDensityDBH() %>%
   filter(speciesCode != "JUNSCO" & speciesCode != "PINMON" & speciesCode != "UNK" & speciesCode != "PINPON") %>%
   ggplot(aes(x = factor(DBHGroup), y = avgDensity, color = factor(visitNumber))) +
   #geom_point() + 
@@ -213,6 +202,7 @@ plotly::ggplotly(frequencyData)
 ```
 
 ##### Dominance
+
 ```{r}
 dominance <- pine$data$LiveTrees %>%
   getDominance() %>%
@@ -254,7 +244,6 @@ plotly::ggplotly(relativeDensityGraph)
 
 ##### Relative Frequency
 
-
 ```{r}
   frequency <- pine$data$LiveTrees %>%
     # create a ID so all subplots across the sections (locationID, park, etc) are unique
@@ -274,6 +263,7 @@ plotly::ggplotly(relativeDensityGraph)
     # Calculate relative frequency for each species in a section
     dplyr::mutate(relativeFrequency = round(frequency/totalFrequency*100, 2))
 ```
+
 ```{r}
 # Original version
 relativeFrequency <- pine$data$LiveTrees %>% 
