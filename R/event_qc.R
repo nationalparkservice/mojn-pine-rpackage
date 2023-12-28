@@ -1,0 +1,29 @@
+#' @importFrom magrittr %>% %<>%
+
+#' Return list of events with no corresponding seedling data
+#' @export
+noSeedlingDataQC <- function() {
+
+  eventFlags <- get_data("Visit")$data$Visit %>%
+    dplyr::select(locationID, eventID) %>%
+    # Join with seedling data
+    dplyr::full_join(get_data("Seedling")$data$Seedling, by = c('eventID')) %>%
+    dplyr::group_by(locationID, eventID) %>%
+    dplyr::summarise(seedlingCount = dplyr::n()) %>%
+    # Filter for events with no corresponding seedling data
+    dplyr::filter(seedlingCount == 0 | is.na(seedlingCount))
+}
+
+#' Return list of events with no corresponding tree data
+#' @export
+noTreeDataQC <- function() {
+
+  eventFlags <- get_data("Visit")$data$Visit %>%
+    dplyr::select(locationID, eventID) %>%
+  # Join with tree data
+  dplyr::full_join(get_data("Tree")$data$Tree, by = c('eventID')) %>%
+    dplyr::group_by(locationID, eventID) %>%
+    dplyr::summarise(treeCount = dplyr::n()) %>%
+    # Filter for events with no corresponding tree data
+    dplyr::filter(treeCount == 0 | is.na(treeCount))
+}
