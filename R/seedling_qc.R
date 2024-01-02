@@ -1,21 +1,10 @@
 #' @importFrom magrittr %>% %<>%
 
-seedlingFlags <- get_data("Seedling")$data$Seedling %>%
-  dplyr::select(locationID, eventDate, subplot, speciesCode, heightClass, tag, vitality, causeOfDeath, eventID) %>%
-  # Join seedling data with duplicate tags
-  dplyr::full_join(seedlingDuplicateTag, by = c('locationID', 'eventDate', 'tag')) %>%
-  # If a tag number is used more than once, add S to tag flagging field, if missing add 'M'
-  dplyr::mutate(flagTag = dplyr::case_when(
-    !is.na(countTotal) ~ 'S',
-    (speciesCode != '_NONE' & speciesCode != '_NotSampled' & is.na(tag)) ~ 'M',
-    TRUE ~ NA))
-
-
 #' Return a list of events that do not have 9 subplots
 numberOfSubplotsQC <- function() {
 
   numOfSubplots <- get_data("Seedling")$data$Seedling %>%
-    dplyr::group_by(locationID, eventDate) %>%
+    dplyr::group_by(eventID, locationID, eventDate) %>%
     dplyr::summarize(numSubplots = dplyr::n_distinct(subplot)) %>%
     dplyr::filter(numSubplots != 9)
 
@@ -25,18 +14,26 @@ numberOfSubplotsQC <- function() {
 #' Return a list of subplots that do not have a value between 1 and 9 or have a missing subplot number
 subplotQC <- function() {
   subplotNumber <- get_data("Seedling")$data$Seedling %>%
-    dplyr::select(scientificName, locationID, eventDate, subplot, tag) %>%
+    dplyr::select(eventID, scientificName, locationID, eventDate, subplot, tag) %>%
     dplyr::filter(subplot < 1 | subplot > 9 | is.na(subplot))
 
   return(subplotNumber)
 }
 
-#' Return a list of seedling records with duplicate tags or missing tags
+
+#' Return a list of seedlings with missing tags
+missingTagQC <- function(){
+  seedlingDuplicateTag <- get_data("Seedling")$data$Seedling %>%
+    dplyr::select(eventID, locationID, eventDate, subplot, tag, scientificName) %>%
+    dplyr::filter(scientificName != 'No seedlings' & is.na(tag))
+}
+
+#' Return a list of seedling records with duplicate tags
 duplicateSeedlingTagQC <- function() {
   seedlingDuplicateTag <- get_data("Seedling")$data$Seedling %>%
-    dplyr::group_by(locationID, eventDate, subplot, tag, scientificName) %>%
+    dplyr::group_by(eventID, locationID, eventDate, subplot, tag, scientificName) %>%
     dplyr::summarize(countTotal = dplyr::n()) %>%
-    dplyr::filter((!is.na(tag) & countTotal > 1) | (scientificName != 'No seedlings' & is.na(tag)))
+    dplyr::filter((!is.na(tag) & countTotal > 1))
 
   return(seedlingDuplicateTag)
 }
@@ -51,7 +48,7 @@ causeOfDeathQC <- function() {
   causesOfDeath <- causesOfDeath[['code']]
 
   causeOfDeathFlag <- get_data("Seedling")$data$Seedling %>%
-    dplyr::select(scientificName, locationID, eventDate, subplot, tag, vitality, causeOfDeath) %>%
+    dplyr::select(eventID, scientificName, locationID, eventDate, subplot, tag, vitality, causeOfDeath) %>%
     # flag data if a seedling is marked as recently dead or dead and the
     dplyr::filter((is.na(causeOfDeath) & (vitality == "RD" | vitality == "D")) | (!(causeOfDeath %in% causesOfDeath) & (vitality == "RD" | vitality == "D")))
 
@@ -63,20 +60,20 @@ vitalityQC <- function(){
   vitalityOptions = c('L', 'D', 'RD')
 
   vitalityFlag <- get_data("Seedling")$data$Seedling %>%
-    dplyr::select(scientificName, locationID, eventDate, subplot, tag, vitality) %>%
+    dplyr::select(eventID, scientificName, locationID, eventDate, subplot, tag, vitality) %>%
     dplyr::filter((scientificName != "No seedlings" & is.na(vitality)) | (!(vitality %in% vitalityOptions) & scientificName != "No seedlings"))
 
   return(vitalityFlag)
 }
 
 #' Return list of seedlings that do not have a species name that matches domain options
-speciesNameQC <- function(){
+seedlingSpeciesQC <- function(){
 
-  speciesNameFlag <- get_data("Seedling")$data$Seedling %>%
-    dplyr::select(scientificName, locationID, eventDate, subplot, tag, vitality) %>%
+  speciesFlag <- get_data("Seedling")$data$Seedling %>%
+    dplyr::select(eventID, scientificName, locationID, eventDate, subplot, tag, vitality) %>%
     dplyr::filter(is.na(scientificName) | scientificName == "")
 
-  return(speciesNameFlag)
+  return(speciesFlag)
 }
 
 #' Return a list of seedlings that are alive but the height class does not match domain values
@@ -84,7 +81,7 @@ heightClassQC <- function() {
   heightClassOptions <- c("20 - <50 cm", "50 - <100 cm", "100 - <137 cm")
 
   heightClassFlag <- get_data("Seedling")$data$Seedling %>%
-    dplyr::select(scientificName, locationID, eventDate, subplot, tag, vitality, heightClass) %>%
+    dplyr::select(eventID, scientificName, locationID, eventDate, subplot, tag, vitality, heightClass) %>%
     dplyr::filter(scientificName != "No seedlings" & vitality == 'L' & !(heightClass %in% heightClassOptions))
 
   return(heightClassFlag)
