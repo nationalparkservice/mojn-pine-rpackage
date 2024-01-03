@@ -1,7 +1,6 @@
-#' @importFrom magrittr %>% %<>%
+
 
 #' Return list of events with no corresponding seedling data
-#' @export
 noSeedlingDataQC <- function() {
 
   noSeedlingFlag <- get_data("Visit")$data$Visit %>%
@@ -17,7 +16,6 @@ noSeedlingDataQC <- function() {
 }
 
 #' Return list of events with no corresponding tree data
-#' @export
 noTreeDataQC <- function() {
 
   noTreeFlag <- get_data("Visit")$data$Visit %>%

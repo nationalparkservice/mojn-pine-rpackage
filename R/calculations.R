@@ -1,5 +1,5 @@
 #' Calculates basal area for every tree
-#' @returns
+#' @returns basal area calculated for every entry
 getBasalArea <- function(treeData){
   # basalArea = pi*r*^2
   basalAreaData <- treeData %>%
@@ -10,14 +10,12 @@ getBasalArea <- function(treeData){
 }
 
 #' Calculate dominance and relative dominance of species in plots
-#' @returns
 #' @param areaSampled area of plots as meters squared, function converts to hectacres
 #' @param grouping the variable you want to find the relative density of (eg. locationID or park)
 #' NOTE the total sample area is calculated from 'areaSampled' so if you change the grouping don't update 'areaSampled'
 getDominance <- function(treeData, plotArea = 2500, grouping = locationID){
   # dominance = Total basal area of a species / Total area sampled
   # relative dominance = (Dominance of a species / Dominance of all species) * 100
-
 
   dominanceData <- treeData %>%
     getBasalArea() %>%
@@ -40,7 +38,6 @@ getDominance <- function(treeData, plotArea = 2500, grouping = locationID){
 }
 
 #' Calculate avg density of species in 5 cm DBH bins
-#' @returns
 #' @param areaSampled the area of a plot in meters^2, default is 2500
 #' Input area of meters sampled as meters squared, function converts to hectares
 #' TODO: make sure this can  be scaled up

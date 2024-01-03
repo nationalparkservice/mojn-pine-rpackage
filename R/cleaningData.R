@@ -1,4 +1,3 @@
-#' @importFrom magrittr %>% %<>%
 
 
 #' TODO:  do i still have to include getting rid of pulled trees and seedlings if they were removed from the database

@@ -1,4 +1,4 @@
-#' @importFrom magrittr %>% %<>%
+
 
 #' Return a list of events that do not have 9 subplots
 numberOfSubplotsQC <- function() {
@@ -88,3 +88,22 @@ heightClassQC <- function() {
 
   return(heightClassFlag)
 }
+
+
+#' Returns a list of seedlings which are RD for multiple entries
+recentlyDeadSeedlingQC <- function() {
+
+  recentlyDeadFlag <- get_data("Seedling")$data$Seedling %>%
+    dplyr::select(eventID, locationID, eventDate, subplot, tag, vitality) %>%
+    dplyr::mutate(uniqueID = paste0(locationID, "_", subplot, "_", tag)) %>%
+    # Filter for only recently dead entries
+    dplyr::filter(vitality == 'RD') %>%
+    dplyr::group_by(locationID, subplot, tag, vitality, uniqueID) %>%
+    # Count number of entries for each seedling
+    dplyr::summarise(count = n()) %>%
+    # Filter for only seedlings that have multiple recently dead entries
+    dplyr::filter(count >1)
+
+  return(recentlyDeadFlag)
+}
+

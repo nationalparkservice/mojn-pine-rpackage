@@ -1,7 +1,6 @@
 # TODO: maybe add QC functions that check things like if dbh or height
 #is more than two standard deviations away from the mean/median
 
-#' @importFrom magrittr %>% %<>%
 
 #' Return a list of trees that have duplicate tags within a plot/tract
 treeDuplicateTagQC <- function(){
@@ -16,7 +15,7 @@ treeDuplicateTagQC <- function(){
 }
 
 #' Return list of alive trees with no tag
-missingTagQC <- function(){
+treeMissingTagQC <- function(){
   missingTag <- get_data("Tree")$data$Tree %>%
     dplyr::select(eventID, park, locationID, eventDate, subplot, tag, scientificName) %>%
     dplyr::filter(is.na(tag))
@@ -35,7 +34,7 @@ stemLetterQC <- function(){
 }
 
 #' Return a list of dead trees that have a missing cause of death or one that does not match domain values
-causeOfDeathQC <- function(){
+treeCauseOfDeathQC <- function(){
   causeOfDeathList <- get_data("metadata")$metadata$categories %>% filter(attributeName == "causeOfDeath")
   causeOfDeathList <- causeOfDeathList[['definition']]
 
@@ -140,7 +139,7 @@ dbhQC <- function(){
 treeSubplotQC <- function(){
 
   subplotFlag <- get_data("Tree")$data$Tree %>%
-    dplyr::select(eventID, park, locationID, eventDate, subplot, tag, treeDBH_cm) %>%
+    dplyr::select(eventID, park, locationID, eventDate, subplot, tag) %>%
     dplyr::filter(subplot < 1 | subplot > 5 | is.na(subplot))
 
   return(subplotFlag)
@@ -149,7 +148,7 @@ treeSubplotQC <- function(){
 
 #' Return a list of trees with a missing vitality or a vitality that don't match a domain value
 treeVitalityQC <- function(){
-  vitalityList <- C('Live', 'Dead', 'RecentlyDead')
+  vitalityList <- c('Live', 'Dead', 'Recently Dead')
 
   vitalityFlag <- get_data("Tree")$data$Tree %>%
     dplyr::select(eventID, park, locationID, eventDate, subplot, tag, vitality) %>%
@@ -259,7 +258,7 @@ treeSpeciesQC <- function(){
 }
 
 #' Returns a list of trees which are RD for multiple entries
-recentlyDeadQC <- function() {
+recentlyDeadTreeQC <- function() {
 
   recentlyDeadFlag <- get_data("Tree")$data$Tree %>%
     dplyr::select(eventID, locationID, eventDate, subplot, tag, vitality) %>%

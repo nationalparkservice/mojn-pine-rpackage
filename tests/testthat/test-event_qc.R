@@ -14,7 +14,6 @@ test_that("Test that noSeedlingDataQC() works", {
 
   # Check that function returns a database
   returnType <- noSeedlingDataQC()
-  expect_type(returnType, "list")
   expect_s3_class(returnType, "data.frame")
 })
 
@@ -30,7 +29,6 @@ test_that("Test that noTreeDataQC() works", {
 
   # Check that function returns a database
   returnType <- noTreeDataQC()
-  expect_type(returnType, "list")
   expect_s3_class(returnType, "data.frame")
 })
 
