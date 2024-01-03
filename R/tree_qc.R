@@ -257,3 +257,18 @@ treeSpeciesQC <- function(){
 
   return(speciesFlag)
 }
+
+#' Returns a list of trees which are RD for multiple entries
+# TODO: check, maybe use distinct() instead of unique()
+recentlyDeadQC <- function() {
+
+  recentlyDeadFlag <- get_data("Tree")$data$Tree %>%
+    dplyr::select(eventID, park, locationID, eventDate, subplot, tag, vitality) %>%
+    dplyr::mutate(uniqueID = paste0(locationID, "_", subplot, "_", tag)) %>%
+    # Filter for only recently dead entries
+    dplyr::filter(vitality == 'Recently Dead') %>%
+    # Filter for trees that have multiple recently dead entries
+    dplyr::filter(!unique(uniqueID))
+
+  return(recentlyDeadFlag)
+}
