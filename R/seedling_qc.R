@@ -26,6 +26,8 @@ missingTagQC <- function(){
   seedlingDuplicateTag <- get_data("Seedling")$data$Seedling %>%
     dplyr::select(eventID, locationID, eventDate, subplot, tag, scientificName) %>%
     dplyr::filter(scientificName != 'No seedlings' & is.na(tag))
+
+  return(seedlingDuplicateTag)
 }
 
 #' Return a list of seedling records with duplicate tags
