@@ -156,7 +156,7 @@ loadPine <- function(data_path, dictionary_dir = data_path, dictionary_filenames
 #'
 #' @export
 #'
-writePine <- function(data_dir = here::here("data", "final"), dictionary_dir = here::here("data", "dictionary"),
+writePine <- function(data_dir = here::here("data"), dictionary_dir = data_dir,
                       dictionary_filenames = c(tables = "data_dictionary_tables.txt",
                                                attributes = "data_dictionary_attributes.txt",
                                                categories = "data_dictionary_categories.txt"),

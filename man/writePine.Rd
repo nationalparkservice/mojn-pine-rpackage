@@ -5,8 +5,8 @@
 \title{Write pine data to CSV}
 \usage{
 writePine(
-  data_dir = here::here("data", "final"),
-  dictionary_dir = here::here("data", "dictionary"),
+  data_dir = here::here("data"),
+  dictionary_dir = data_dir,
   dictionary_filenames = c(tables = "data_dictionary_tables.txt", attributes =
     "data_dictionary_attributes.txt", categories = "data_dictionary_categories.txt"),
   verbose = FALSE,
