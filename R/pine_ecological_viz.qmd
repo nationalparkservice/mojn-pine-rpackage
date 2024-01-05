@@ -75,33 +75,6 @@ map
 ## Live Trees by Plot
 
 ::: panel-tabset
-##### Basal Area
-
-```{r}
-# avg basal area of plots split by communities/year
-# TODO: add error bars
-treeDominance <- getDominance(pine$data$LiveTrees)
-
-pine$data$LiveTrees %>%
-  getBasalArea() %>%
-  # find the total basal area of each locationID
-  group_by(locationID, visitNumber, sampleFrame) %>%
-  summarise(totalPlotBasal = sum(basalArea)) %>%
-  group_by(visitNumber, sampleFrame) %>%
-  summarise(meanBasalPerPlot = mean(totalPlotBasal)) %>%
-  ggplot(aes(x = factor(sampleFrame), y = meanBasalPerPlot, fill = factor(visitNumber))) + 
-  geom_col(stat="identity", position = "dodge") + 
-  theme_minimal() + 
-  labs(title = "Mean Basal Area of each Community",
-       x = "Community", y = "Basal Area (m^2)",
-       fill = "Visit") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5)) +
-  scale_fill_light()
-
-
-```
-
 ##### Tree Count
 
 ```{r}
@@ -109,13 +82,14 @@ countGraph <- pine$data$LiveTrees %>%
   getTreeCount() %>%
   ggplot(aes(x = factor(visitNumber), y = count, fill = factor(scientificName))) +
   geom_col()  +
-  facet_wrap(~locationID, ncol = 5) + 
+  facet_wrap(~locationID, ncol = 10) + 
   theme_minimal() + 
-  labs(title = "Tree Count by Species",
+  labs(title = "Tree Count",
        x = "Visit", y = "Count",
        fill = "Species") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5)) +
+    theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(hjust = 0.5),
+         strip.text = element_text(size = 6)) +
   scale_fill_light()
 
 plotly::ggplotly(countGraph)
@@ -180,12 +154,12 @@ gp
 # Average frequency of each species - includes plots without a species when averaging
 frequencyData <- pine$data$LiveTrees %>%
   getFrequency() %>%
+  group_by(visitNumber) %>%
+  mutate(numberOfPlots = dplyr::n_distinct(locationID)) %>%
   group_by(scientificName, visitNumber) %>%
-  summarise(avgFrequency = sum(frequency)/n()) %>%
+  summarise(avgFrequency = sum(frequency)/first(numberOfPlots)) %>%
   ggplot(aes(x = factor(scientificName), y = avgFrequency, fill = factor(visitNumber))) +
-  #ggplot(aes(x = factor(speciesCode), y = avgFrequency, fill = factor(visitNumber))) +
   geom_col(stat="identity", position = "dodge")  +
-  #facet_wrap(~speciesCode) + 
   theme_minimal() + 
   labs(title = "Mean Frequency",
        x = "Species", y = "Percent",
@@ -206,8 +180,8 @@ dominance <- pine$data$LiveTrees %>%
   mutate(n = n()) %>%
   # Remove species with not enough data points to graph
   filter(n > 4) %>%
-  ggplot(aes(x = factor(scientificName), y = dominance, fill = factor(visitNumber))) +
-  facet_wrap(~scientificName, scales="free", drop= TRUE) +
+  ggplot(aes(x = factor(visitNumber), y = dominance, fill = factor(visitNumber))) +
+  facet_wrap(~scientificName, scales="free_y", drop= TRUE) +
   geom_violin() + 
     stat_summary(fun = median, geom = "point", position = position_dodge(0.9)) +
   stat_summary(fun = mean, geom = "point", position = position_dodge(0.9), color = "red") +
@@ -229,13 +203,14 @@ relativeDensityGraph <- pine$data$LiveTrees %>%
   getRelativeDensity() %>%
   ggplot(aes(x = factor(visitNumber), y = relativeDensity, fill = factor(scientificName))) +
   geom_col()  +
-  facet_wrap(~locationID, ncol = 5) + 
+  facet_wrap(~locationID, ncol = 10) + 
   theme_minimal() + 
   labs(title = "Relative Density",
        x = "Visit", y = "Relative Density",
        fill = "Species") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(hjust = 0.5),
+         strip.text = element_text(size = 6)) +
   scale_fill_light() 
 # +
 #   scale_fill_muted()
@@ -244,26 +219,6 @@ plotly::ggplotly(relativeDensityGraph)
 ```
 
 ##### Relative Frequency
-
-```{r}
-  frequency <- pine$data$LiveTrees %>%
-    # create a ID so all subplots across the sections (locationID, park, etc) are unique
-    dplyr::mutate(uniqueSubPlotNum = paste0(locationID, "_", subplot)) %>%
-    dplyr::group_by(locationID, visitNumber) %>%
-    # Find out how many plots are in the grouping variable
-    dplyr::mutate(numberOfPlots = dplyr::n_distinct(locationID)) %>%
-    dplyr::group_by(locationID, scientificName, visitNumber, numberOfPlots) %>%
-    # Calculate frequency for each species in a section
-    dplyr::summarise(frequency = (dplyr::n_distinct(uniqueSubPlotNum)*500)/(first(numberOfPlots)*2500)*100) %>%
-    dplyr::ungroup() %>%
-    dplyr::group_by(locationID, visitNumber, numberOfPlots) %>%
-    # Calculate total frequency for each section which = sum of all the frequencies in the section
-    dplyr::mutate(totalFrequency = sum(frequency)) %>%
-    dplyr::ungroup() %>%
-    dplyr::group_by(locationID, scientificName, visitNumber, numberOfPlots) %>%
-    # Calculate relative frequency for each species in a section
-    dplyr::mutate(relativeFrequency = round(frequency/totalFrequency*100, 2)) 
-```
 
 ```{r}
 
@@ -278,7 +233,7 @@ relativeFrequency <- pine$data$LiveTrees %>%
        fill = "Species") + 
   theme(plot.title = element_text(hjust = 0.5),
         axis.text.x = element_text(hjust = 0.5),
-         strip.text = element_text(size = 5)) +
+         strip.text = element_text(size = 6)) +
   scale_fill_light()
 
 ggplotly(relativeFrequency)
@@ -291,13 +246,14 @@ relDomiance <- pine$data$LiveTrees %>%
   getDominance() %>%
   ggplot(aes(x = factor(visitNumber), y = relativeDominance, fill = factor(scientificName))) +
   geom_col() +
-  facet_wrap(~locationID) + 
+  facet_wrap(~locationID, ncol = 10) + 
   theme_minimal() + 
   labs(title = "Relative Dominance",
        x = "Visit Number", y = "Percent",
        fill = "Species") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(hjust = 0.5),
+         strip.text = element_text(size = 6)) +
   scale_fill_light()
 
 ggplotly(relDomiance)
@@ -310,13 +266,14 @@ importanceVal <- pine$data$LiveTrees %>%
   getImportanceValue() %>%
   ggplot(aes(x = factor(visitNumber), y = importanceValue, fill = factor(scientificName))) +
   geom_col() +
-  facet_wrap(~locationID) + 
+  facet_wrap(~locationID, ncol = 10) + 
   theme_minimal() + 
   labs(title = "Importance Value",
        x = "Visit Number", y = "Value",
        fill = "Species") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(hjust = 0.5),
+         strip.text = element_text(size = 6)) +
   scale_fill_light()
 
 ggplotly(importanceVal)
@@ -330,8 +287,8 @@ pine$data$LiveTrees %>%
   mutate(n = n()) %>%
   # Remove species with not enough data points to graph
   filter(n > 4) %>%
-  ggplot(aes(x = factor(scientificName), y = treeHeight_m, fill = factor(visitNumber))) +
-  facet_wrap(~scientificName, scales="free", drop= TRUE) +
+  ggplot(aes(x = factor(visitNumber), y = treeHeight_m, fill = factor(visitNumber))) +
+  facet_wrap(~scientificName, scales="free_y", drop= TRUE) +
   geom_violin() + 
   stat_summary(fun = median, geom = "point", position = position_dodge(0.9)) +
   stat_summary(fun = mean, geom = "point", position = position_dodge(0.9), color = "red") +
@@ -348,6 +305,33 @@ pine$data$LiveTrees %>%
 ## Live Trees by Community
 
 ::: panel-tabset
+##### Basal Area
+
+```{r}
+# avg basal area of plots split by communities/year
+# TODO: add error bars
+treeDominance <- getDominance(pine$data$LiveTrees)
+
+pine$data$LiveTrees %>%
+  getBasalArea() %>%
+  # find the total basal area of each locationID
+  group_by(locationID, visitNumber, sampleFrame) %>%
+  summarise(totalPlotBasal = sum(basalArea)) %>%
+  group_by(visitNumber, sampleFrame) %>%
+  summarise(meanBasalPerPlot = mean(totalPlotBasal)) %>%
+  ggplot(aes(x = factor(sampleFrame), y = meanBasalPerPlot, fill = factor(visitNumber))) + 
+  geom_col(stat="identity", position = "dodge") + 
+  theme_minimal() + 
+  labs(title = "Mean Basal Area of each Community",
+       x = "Community", y = "Basal Area (m^2)",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light()
+
+
+```
+
 ##### Tree Count
 
 ```{r}
@@ -358,7 +342,7 @@ countGraph <- pine$data$LiveTrees %>%
   geom_col()  +
   facet_wrap(~sampleFrame) + 
   theme_minimal() + 
-  labs(title = "Tree Count by Species",
+  labs(title = "Tree Count",
        x = "Visit", y = "Count",
        fill = "Species") + 
   theme(plot.title = element_text(hjust = 0.5)) +
@@ -457,13 +441,14 @@ countDeadGraph <- pine$data$DeadTrees %>%
   #filter(locationID == "GRBA_N_002") %>%
   ggplot(aes(x = factor(visitNumber), y = count, fill = factor(scientificName))) +
   geom_col()  +
-  facet_wrap(~locationID) + 
+  facet_wrap(~locationID, ncol = 10) + 
   theme_minimal() + 
   labs(title = "Dead Tree Count",
        x = "Visit", y = "Count",
        fill = "Species") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(hjust = 0.5),
+         strip.text = element_text(size = 6)) +
   scale_fill_light()
 
 ggplotly(countDeadGraph)
@@ -511,13 +496,15 @@ densityPlotGraph <- pine$data$DeadTrees %>%
   # ungroup() %>%
   ggplot(aes(x = factor(visitNumber), y = density, fill = factor(scientificName))) +
   geom_col() + 
-  facet_wrap(~locationID, scales = "free_y") + 
+  facet_wrap(~locationID, ncol = 10) + 
   theme_minimal() + 
   labs(title = "Density by Plot",
        x = "Species", y = "Density (#/ha)",
        fill = "Visit") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(hjust = 0.5, angle = 315),
+         strip.text = element_text(size = 6)) +
+  #theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
   scale_fill_light()
 
 ggplotly(densityPlotGraph)
@@ -578,16 +565,19 @@ treeVitality <- pine$data$Tree %>%
   group_by(visitNumber, scientificName, DBHGroup) %>%
   summarise(alive = mean(vitality == "Live")*100,
             n = n()) %>%
-  filter(n > 4) %>%
+  filter(n > 4 & scientificName != "Unknown") %>%
+  mutate(DBHGroup = str_extract(DBHGroup, regex("^[^]]*"))) %>%
+  mutate(DBHGroup = as.factor(str_extract(DBHGroup, regex("[^,]*$")))) %>%
   ggplot(aes(x = DBHGroup, y = alive, fill = factor(visitNumber))) +
   geom_col(position = position_dodge(preserve = "single")) +
   facet_wrap(~scientificName, scales = "free_x", drop = TRUE) + 
   theme_minimal() + 
-  labs(title = "Proportion Alive",
+  labs(title = "Proportion of Live Trees",
        x = "DBH Group", y = "Proportion",
        fill = "Visit") + 
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  theme(panel.spacing.y = unit(3, "lines")) +
   scale_fill_light()
   
 ggplotly(treeVitality)          
@@ -620,19 +610,20 @@ ggplotly(mortalityCause)
 # Canker data wrangling
 # TODO: there are no cankers in the data so use test dats with cankers to try out canker graphs 
 
-treeCankerTest <- pine$data$Tree %>%
-  dplyr::filter(dplyr::if_all((contains("Cank") & !contains("Type")), ~ !is.na(.x))) %>%
-  select(locationID, boleCankers_A_Lower,boleCankers_A_Mid, branchCanks_I_Upper, branchCanks_I_Mid, visitNumber, scientificName, treeDBH_cm, crownKill_Upper_percent, crownKill_Mid_percent, crownKill_Lower_percent) %>%
-  slice(1:500)
+# treeCankerTest <- pine$data$Tree %>%
+#   dplyr::filter(dplyr::if_all((contains("Cank") & !contains("Type")), ~ !is.na(.x))) %>%
+#   select(locationID, boleCankers_A_Lower,boleCankers_A_Mid, branchCanks_I_Upper, branchCanks_I_Mid, visitNumber, scientificName, treeDBH_cm, crownKill_Upper_percent, crownKill_Mid_percent, crownKill_Lower_percent) %>%
+#   slice(1:500)
+# 
+# 
+# treeCankerTest[sample(1:500, 100, replace=FALSE), 'boleCankers_A_Lower'] =  'Y'
+# treeCankerTest[sample(1:500, 250, replace=FALSE), 'boleCankers_A_Mid'] =  'Y'
+# treeCankerTest[sample(1:500, 150, replace=FALSE), c("branchCanks_I_Upper")] = 'Y'
+# treeCankerTest[sample(1:500, 100, replace=FALSE), 'branchCanks_I_Mid'] = 'Y'
+# 
 
-
-treeCankerTest[sample(1:500, 100, replace=FALSE), 'boleCankers_A_Lower'] =  'Y'
-treeCankerTest[sample(1:500, 250, replace=FALSE), 'boleCankers_A_Mid'] =  'Y'
-treeCankerTest[sample(1:500, 150, replace=FALSE), c("branchCanks_I_Upper")] = 'Y'
-treeCankerTest[sample(1:500, 100, replace=FALSE), 'branchCanks_I_Mid'] = 'Y'
-
-#Cankers <- pineAliveAndDead$data$Tree %>%
-cankers <- treeCankerTest %>%  
+# cankers <- treeCankerTest %>%
+cankersData <- pine$data$Tree %>%
   # Filter out any canker rows that contains a NA (that are not canker type)
   dplyr::filter(dplyr::if_all((contains("Cank") & !contains("Type")), ~ !is.na(.x))) %>%
   mutate(activeCankers = case_when(
@@ -660,7 +651,7 @@ cankers <- treeCankerTest %>%
 
 # TODO: currently using fake data bc there's no blister rust in mojn data, update eventually
 #crownKill <- pine$data$Tree %>%
-crownKill <- cankers %>%
+crownKill <- cankersData %>%
   filter(anyCankers == "Y") %>%
   filter(!is.na(crownKill_Upper_percent) & !is.na(crownKill_Mid_percent) & !is.na(crownKill_Lower_percent)) %>%
   rowwise() %>%
@@ -688,7 +679,7 @@ ggplotly(crownKill)
 # Percent of trees with active cankers by species
 # TODO: could group by plot/park/community and then avg it
 
-activeCankerPercent <- cankers %>%
+activeCankerPercent <- cankersData %>%
   group_by(visitNumber, scientificName) %>%
   mutate(totalTrees = n()) %>%
   group_by(visitNumber, scientificName, activeCankers, totalTrees) %>%
@@ -697,7 +688,7 @@ activeCankerPercent <- cankers %>%
   filter(activeCankers == 'Y') %>%
   ggplot(aes(x = factor(visitNumber), y = percent)) +
   geom_col() +
-  facet_wrap(~scientificName) + 
+  #facet_wrap(~scientificName) + 
   theme_minimal() + 
   labs(title = "Active Canker Percent",
        x = "Visit", y = "Percent",
@@ -715,7 +706,7 @@ ggplotly(activeCankerPercent)
 # Count of trees / area sampled  area =2500 sq m = 0.25 ha
 # number/ha
 
-activeCankerDensity <-  cankers %>%
+activeCankerDensity <-  cankersData %>%
   group_by(visitNumber, scientificName, activeCankers, locationID) %>%
   summarise(plotDensity = n()/0.25) %>%
   group_by(visitNumber, scientificName, activeCankers) %>%
@@ -723,7 +714,7 @@ activeCankerDensity <-  cankers %>%
   filter(activeCankers == 'Y') %>%
   ggplot(aes(x = factor(visitNumber), y = avgDensity, fill = activeCankers)) +
   geom_col() +
-  facet_wrap(~scientificName) + 
+  #facet_wrap(~scientificName) + 
   theme_minimal() + 
   labs(title = "Active Canker Density",
        x = "Visit", y = "Density (#/ha)",
@@ -742,7 +733,7 @@ ggplotly(activeCankerDensity)
 # Percent of trees with inactive cankers by species
 # TODO: could group by plot/park/community and then avg it
 
-inactiveCankerPercent <- cankers %>%
+inactiveCankerPercent <- cankersData %>%
   group_by(visitNumber, scientificName) %>%
   mutate(totalTrees = n()) %>%
   group_by(visitNumber, scientificName, inactiveCankers, totalTrees) %>%
@@ -753,7 +744,7 @@ inactiveCankerPercent <- cankers %>%
   filter(inactiveCankers == 'Y') %>%
   ggplot(aes(x = factor(visitNumber), y = percent, fill = inactiveCankers)) +
   geom_col() +
-  facet_wrap(~scientificName) + 
+  #facet_wrap(~scientificName) + 
   theme_minimal() + 
   labs(title = "Inactive Canker Percent",
        x = "Visit", y = "Percent",
@@ -772,7 +763,7 @@ ggplotly(inactiveCankerPercent)
 # Count of trees / area sampled  area =2500 sq m = 0.25 ha
 # number/ha
 
-activeCankerDensity <-  cankers %>%
+activeCankerDensity <-  cankersData %>%
   group_by(visitNumber, scientificName, inactiveCankers, locationID) %>%
   summarise(plotDensity = n()/0.25) %>%
   group_by(visitNumber, scientificName, inactiveCankers) %>%
@@ -780,7 +771,7 @@ activeCankerDensity <-  cankers %>%
   filter(inactiveCankers == 'Y') %>%
   ggplot(aes(x = factor(visitNumber), y = avgDensity, fill = inactiveCankers)) +
   geom_col() +
-  facet_wrap(~scientificName) + 
+  #facet_wrap(~scientificName) + 
   theme_minimal() + 
   labs(title = "Inctive Canker Density",
        x = "Visit", y = "Density (#/ha)",
@@ -797,7 +788,7 @@ ggplotly(activeCankerDensity)
 
 ```{r}
 # Percent of trees with active OR inactive cankers by species
-cankerPercent <- cankers %>%
+cankerPercent <- cankersData %>%
   group_by(visitNumber, scientificName) %>%
   mutate(totalTrees = n()) %>%
   group_by(visitNumber, scientificName, anyCankers, totalTrees) %>%
@@ -808,7 +799,7 @@ cankerPercent <- cankers %>%
   filter(anyCankers == 'Y') %>%
   ggplot(aes(x = factor(visitNumber), y = percent, fill = anyCankers)) +
   geom_col() +
-  facet_wrap(~scientificName) + 
+  #facet_wrap(~scientificName) + 
   theme_minimal() + 
   labs(title = "Canker Percent",
        x = "Visit", y = "Percent",
@@ -829,7 +820,7 @@ ggplotly(cankerPercent)
 # number/ha
 
 # TODO White pine species, 5cm DBH bins
-activeCankerDensity <-  cankers %>%
+activeCankerDensity <-  cankersData %>%
   mutate(DBHGroup = cut(x = treeDBH_cm, breaks = 5*(0:(max(treeDBH_cm)/5)))) %>%
   group_by(visitNumber, scientificName, anyCankers, locationID, DBHGroup) %>%
   summarise(plotDensity = n()/0.25) %>%
@@ -846,7 +837,7 @@ activeCankerDensity <-  cankers %>%
   #geom_point() +
   geom_line(group = 2) +
   #geom_col() +
-  facet_wrap(~scientificName, scales = "free", strip.position = "bottom") + 
+  #facet_wrap(~scientificName, scales = "free", strip.position = "bottom") + 
   theme_minimal() + 
   labs(title = "Canker Density",
        x = "Visit", y = "Density (#/ha)",
@@ -857,26 +848,28 @@ activeCankerDensity <-  cankers %>%
   theme(panel.spacing.y = unit(3, "lines"))
   #scale_fill_discrete(type = ())
 
-#activeCankerDensity
-gp <- plotly::ggplotly(activeCankerDensity)
+activeCankerDensity
 
-# Get the names of the legend entries
-df <- data.frame(id = seq_along(gp$x$data), legend_entries = unlist(lapply(gp$x$data, `[[`, "name")))
-# Extract the group identifier
-df$legend_group <- gsub("^\\((.*?),\\d+\\)", "\\1", df$legend_entries)
-# Add an indicator for the first entry per group
-df$is_first <- !duplicated(df$legend_group)
+# Data Wrangling to fix weird legend
+#gp <- plotly::ggplotly(activeCankerDensity)
 
-for (i in df$id) {
-  # Is the layer the first entry of the group?
-  is_first <- df$is_first[[i]]
-  # Assign the group identifier to the name and legendgroup arguments
-  gp$x$data[[i]]$name <- df$legend_group[[i]]
-  gp$x$data[[i]]$legendgroup <- gp$x$data[[i]]$name
-  # Show the legend only for the first layer of the group 
-  if (!is_first) gp$x$data[[i]]$showlegend <- FALSE
-}
-gp
+# # Get the names of the legend entries
+# df <- data.frame(id = seq_along(gp$x$data), legend_entries = unlist(lapply(gp$x$data, `[[`, "name")))
+# # Extract the group identifier
+# df$legend_group <- gsub("^\\((.*?),\\d+\\)", "\\1", df$legend_entries)
+# # Add an indicator for the first entry per group
+# df$is_first <- !duplicated(df$legend_group)
+# 
+# for (i in df$id) {
+#   # Is the layer the first entry of the group?
+#   is_first <- df$is_first[[i]]
+#   # Assign the group identifier to the name and legendgroup arguments
+#   gp$x$data[[i]]$name <- df$legend_group[[i]]
+#   gp$x$data[[i]]$legendgroup <- gp$x$data[[i]]$name
+#   # Show the legend only for the first layer of the group 
+#   if (!is_first) gp$x$data[[i]]$showlegend <- FALSE
+#}
+#gp
 ```
 
 ```{r}
@@ -885,7 +878,7 @@ pineBeetles <- pine$data$Tree %>%
   # Filter out any beetle rows that contains a NA
   dplyr::filter(dplyr::if_all((contains("Cank") & !contains("Type")), ~ !is.na(.x))) %>%
   mutate(pineBeetle = case_when(
-    # If any of the columns that contain the strings "beetle" set the beetle marker to Y
+    # If any of the columns that contain the string "beetle" set the beetle marker to Y
     (if_any((contains("Beetle")), ~ . == 'Y')) ~ 'Y',
     # Otherwise set it to N
     .default = 'N'))
@@ -1009,7 +1002,7 @@ mistletoeDensity <- pine$data$Tree %>%
   summarise(avgDensity = sum(density)/totalPlots) %>%
   filter(mistletoe == 'Y') %>%
   ggplot(aes(x = factor(scientificName), y = avgDensity, fill = factor(visitNumber))) +
-  geom_col(position = position_dodge(preserve = "single")) + 
+  geom_col(position = "dodge") + 
   theme_minimal() + 
   labs(title = "Mistletoe Density",
        x = "Species", y = "Density (#/ha)",
@@ -1076,7 +1069,7 @@ ggplotly(femaleConeDensity)
 ```{r}
 # Mean cone count
 coneCount <- pine$data$Tree %>%
-  filter(coneCount != -999 & coneCount != 999) %>%
+  filter(coneCount != -999 & coneCount != 999 & !is.na(coneCount)) %>%
   group_by(scientificName, year) %>%
   summarise(totalCones = sum(coneCount), 
             totalTrees = n(), 
@@ -1140,6 +1133,7 @@ seedlingCount <- pine$data$Seedling %>%
        fill = "Height Class") + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(axis.text.x = element_text(hjust = 0.5)) +
+  theme(panel.spacing.y = unit(2, "lines")) +
   scale_fill_light() 
 
 ggplotly(seedlingCount)
@@ -1169,6 +1163,7 @@ seedlingDensity <- pine$data$Seedling %>%
        fill = "Height Class") + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(axis.text.x = element_text(hjust = 0.5)) +
+  theme(panel.spacing.y = unit(2, "lines")) +
   scale_fill_light()
 
 ggplotly(seedlingDensity)
