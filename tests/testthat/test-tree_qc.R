@@ -1,8 +1,11 @@
+# Load test data
+loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/tests/testthat/testData", dictionary_dir = "testData/dictionary")
 
 
 test_that("Test that treeDuplicateTagQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(treeDuplicateTagQC())
+  expect_equal(actual_rows, 2)
 
   # Compare expected and actual column names
   actual_cols <- colnames(treeDuplicateTagQC())
@@ -18,8 +21,9 @@ test_that("Test that treeDuplicateTagQC() works", {
 
 
 test_that("Test that treeMissingTagQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(treeDuplicateTagQC())
+  expect_equal(actual_rows, 2)
 
   # Compare expected and actual column names
   actual_cols <- colnames(treeMissingTagQC())
@@ -35,8 +39,9 @@ test_that("Test that treeMissingTagQC() works", {
 
 
 test_that("Test that stemLetterQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(treeDuplicateTagQC())
+  expect_equal(actual_rows, 2)
 
   # Compare expected and actual column names
   actual_cols <- colnames(stemLetterQC())
@@ -50,8 +55,9 @@ test_that("Test that stemLetterQC() works", {
 
 
 test_that("Test that treeCauseOfDeathQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(treeDuplicateTagQC())
+  expect_equal(actual_rows, 2)
 
   # Compare expected and actual column names
   actual_cols <- colnames(treeCauseOfDeathQC())
@@ -65,12 +71,13 @@ test_that("Test that treeCauseOfDeathQC() works", {
 
 
 test_that("Test that treeHeightQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(treeHeightQC())
+  expect_equal(actual_rows, 3)
 
   # Compare expected and actual column names
   actual_cols <- colnames(treeHeightQC())
-  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "treeHeight_m", "vitality")
+  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "vitality", "treeHeight_m", "scientificName", "threeStandardDeviations")
   expect_equal(actual_cols, expected_cols)
 
   # Check that function returns a database
@@ -78,25 +85,10 @@ test_that("Test that treeHeightQC() works", {
   expect_s3_class(returnType, "data.frame")
 })
 
-
-test_that("Test that mortalityYearQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
-
-  # Compare expected and actual column names
-  actual_cols <- colnames(mortalityYearQC())
-  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "estimatedMortalityYear", "scientificName", "vitality")
-  expect_equal(actual_cols, expected_cols)
-
-  # Check that function returns a database
-  returnType <- mortalityYearQC()
-  expect_s3_class(returnType, "data.frame")
-})
-
-
 test_that("Test that coneCountQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(coneCountQC())
+  expect_equal(actual_rows, 20)
 
   # Compare expected and actual column names
   actual_cols <- colnames(coneCountQC())
@@ -109,73 +101,14 @@ test_that("Test that coneCountQC() works", {
 })
 
 
-test_that("Test that crownHealthQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
-
-  # Compare expected and actual column names
-  actual_cols <- colnames(crownHealthQC())
-  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "crownHealth", "vitality", "scientificName")
-  expect_equal(actual_cols, expected_cols)
-
-  # Check that function returns a database
-  returnType <- crownHealthQC()
-  expect_s3_class(returnType, "data.frame")
-})
-
-
-test_that("Test that crownKillLowerQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
-
-  # Compare expected and actual column names
-  actual_cols <- colnames(crownKillLowerQC())
-  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "vitality", "scientificName", "crownKill_Lower_percent", "crownKill_Mid_percent", "crownKill_Upper_percent")
-  expect_equal(actual_cols, expected_cols)
-
-  # Check that function returns a database
-  returnType <- crownKillLowerQC()
-  expect_s3_class(returnType, "data.frame")
-})
-
-
-test_that("Test that crownKillMiddleQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
-
-  # Compare expected and actual column names
-  actual_cols <- colnames(crownKillMiddleQC())
-  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "vitality", "scientificName", "crownKill_Lower_percent", "crownKill_Mid_percent", "crownKill_Upper_percent")
-  expect_equal(actual_cols, expected_cols)
-
-  # Check that function returns a database
-  returnType <- crownKillMiddleQC()
-  expect_s3_class(returnType, "data.frame")
-})
-
-
-test_that("Test that crownKillUpperQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
-
-  # Compare expected and actual column names
-  actual_cols <- colnames(crownKillUpperQC())
-  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "vitality", "scientificName", "crownKill_Lower_percent", "crownKill_Mid_percent", "crownKill_Upper_percent")
-  expect_equal(actual_cols, expected_cols)
-
-  # Check that function returns a database
-  returnType <- crownKillUpperQC()
-  expect_s3_class(returnType, "data.frame")
-})
-
-
 test_that("Test that dbhQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(dbhQC())
+  expect_equal(actual_rows, 5)
 
   # Compare expected and actual column names
   actual_cols <- colnames(dbhQC())
-  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "treeDBH_cm")
+  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "vitality", "treeDBH_cm", "scientificName", "threeStandardDeviations")
   expect_equal(actual_cols, expected_cols)
 
   # Check that function returns a database
@@ -185,8 +118,9 @@ test_that("Test that dbhQC() works", {
 
 
 test_that("Test that treeSubplotQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(treeSubplotQC())
+  expect_equal(actual_rows, 10)
 
   # Compare expected and actual column names
   actual_cols <- colnames(treeSubplotQC())
@@ -200,8 +134,9 @@ test_that("Test that treeSubplotQC() works", {
 
 
 test_that("Test that treeVitalityQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(treeVitalityQC())
+  expect_equal(actual_rows, 2)
 
   # Compare expected and actual column names
   actual_cols <- colnames(treeVitalityQC())
@@ -214,9 +149,43 @@ test_that("Test that treeVitalityQC() works", {
 })
 
 
+test_that("Test that treeSpeciesQC() works", {
+  # Compare number of rows returned
+  actual_rows <- nrow(treeSpeciesQC())
+  expect_equal(actual_rows, 6)
+
+  # Compare expected and actual column names
+  actual_cols <- colnames(treeSpeciesQC())
+  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "scientificName", "vitality")
+  expect_equal(actual_cols, expected_cols)
+
+  # Check that function returns a database
+  returnType <- treeSpeciesQC()
+  expect_s3_class(returnType, "data.frame")
+})
+
+
+test_that("Test that recentlyDeadTreeQC() works", {
+  # Compare number of rows returned
+  actual_rows <- nrow(recentlyDeadTreeQC())
+  expect_equal(actual_rows, 1)
+
+  # Compare expected and actual column names
+  actual_cols <- colnames(recentlyDeadTreeQC())
+  expected_cols <- c("locationID", "subplot", "tag", "vitality", "uniqueID", "count")
+  expect_equal(actual_cols, expected_cols)
+
+  # Check that function returns a database
+  returnType <- recentlyDeadTreeQC()
+  expect_s3_class(returnType, "data.frame")
+})
+
+
+
+
+# The fake data has not been modified to fail the tests below
+
 test_that("Test that boleCankersILowerQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
   # Compare expected and actual column names
   actual_cols <- colnames(boleCankersILowerQC())
@@ -304,31 +273,77 @@ test_that("Test that branchCankersIUpperQC() works", {
 })
 
 
-test_that("Test that treeSpeciesQC() works", {
+test_that("Test that crownHealthQC() works", {
   data_dir = "data/final"
   fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
   # Compare expected and actual column names
-  actual_cols <- colnames(treeSpeciesQC())
-  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "scientificName", "vitality")
+  actual_cols <- colnames(crownHealthQC())
+  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "crownHealth", "vitality", "scientificName")
   expect_equal(actual_cols, expected_cols)
 
   # Check that function returns a database
-  returnType <- treeSpeciesQC()
+  returnType <- crownHealthQC()
   expect_s3_class(returnType, "data.frame")
 })
 
 
-test_that("Test that recentlyDeadTreeQC() works", {
+test_that("Test that crownKillLowerQC() works", {
   data_dir = "data/final"
   fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
   # Compare expected and actual column names
-  actual_cols <- colnames(recentlyDeadTreeQC())
-  expected_cols <- c("locationID", "subplot", "tag", "vitality", "uniqueID", "count")
+  actual_cols <- colnames(crownKillLowerQC())
+  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "vitality", "scientificName", "crownKill_Lower_percent", "crownKill_Mid_percent", "crownKill_Upper_percent")
   expect_equal(actual_cols, expected_cols)
 
   # Check that function returns a database
-  returnType <- recentlyDeadTreeQC()
+  returnType <- crownKillLowerQC()
   expect_s3_class(returnType, "data.frame")
 })
+
+
+test_that("Test that crownKillMiddleQC() works", {
+  data_dir = "data/final"
+  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+
+  # Compare expected and actual column names
+  actual_cols <- colnames(crownKillMiddleQC())
+  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "vitality", "scientificName", "crownKill_Lower_percent", "crownKill_Mid_percent", "crownKill_Upper_percent")
+  expect_equal(actual_cols, expected_cols)
+
+  # Check that function returns a database
+  returnType <- crownKillMiddleQC()
+  expect_s3_class(returnType, "data.frame")
+})
+
+
+test_that("Test that crownKillUpperQC() works", {
+  data_dir = "data/final"
+  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+
+  # Compare expected and actual column names
+  actual_cols <- colnames(crownKillUpperQC())
+  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "vitality", "scientificName", "crownKill_Lower_percent", "crownKill_Mid_percent", "crownKill_Upper_percent")
+  expect_equal(actual_cols, expected_cols)
+
+  # Check that function returns a database
+  returnType <- crownKillUpperQC()
+  expect_s3_class(returnType, "data.frame")
+})
+
+
+test_that("Test that mortalityYearQC() works", {
+  data_dir = "data/final"
+  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+
+  # Compare expected and actual column names
+  actual_cols <- colnames(mortalityYearQC())
+  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "estimatedMortalityYear", "scientificName", "vitality")
+  expect_equal(actual_cols, expected_cols)
+
+  # Check that function returns a database
+  returnType <- mortalityYearQC()
+  expect_s3_class(returnType, "data.frame")
+})
+

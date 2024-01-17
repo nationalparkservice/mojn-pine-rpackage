@@ -1,8 +1,10 @@
-
+# Load test data
+loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/tests/testthat/testData", dictionary_dir = "testData/dictionary")
 
 test_that("Test that numberOfSubplotsQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(numberOfSubplotsQC())
+  expect_equal(actual_rows, 55)
 
   # Compare expected and actual column names
   actual_cols <- colnames(numberOfSubplotsQC())
@@ -12,14 +14,13 @@ test_that("Test that numberOfSubplotsQC() works", {
   # Check that function returns a database
   returnType <- numberOfSubplotsQC()
   expect_s3_class(returnType, "data.frame")
-
-  # This function returns two rows rn
 })
 
 
 test_that("Test that subplotQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(subplotQC())
+  expect_equal(actual_rows, 10)
 
   # Compare expected and actual column names
   actual_cols <- colnames(subplotQC())
@@ -34,8 +35,9 @@ test_that("Test that subplotQC() works", {
 
 # TODO: this currently fails devtools::test() but not when you run the file
 test_that("Test that missingTagQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(missingTagQC())
+  expect_equal(actual_rows, 4)
 
   # Compare expected and actual column names
   actual_cols <- colnames(missingTagQC())
@@ -49,12 +51,13 @@ test_that("Test that missingTagQC() works", {
 
 
 test_that("Test that duplicateSeedlingTagQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(duplicateSeedlingTagQC())
+  expect_equal(actual_rows, 1)
 
   # Compare expected and actual column names
   actual_cols <- colnames(duplicateSeedlingTagQC())
-  expected_cols <- c("eventID", "locationID", "eventDate", "subplot", "tag", "scientificName", "countTotal")
+  expected_cols <- c("locationID", "eventDate", "subplot", "tag", "countTotal")
   expect_equal(actual_cols, expected_cols)
 
   # Check that function returns a database
@@ -63,10 +66,10 @@ test_that("Test that duplicateSeedlingTagQC() works", {
 })
 
 
-# TODO: this currently fails devtools::test() but not when you run the file
 test_that("Test that causeOfDeathQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(causeOfDeathQC())
+  expect_equal(actual_rows, 4)
 
   # Compare expected and actual column names
   actual_cols <- colnames(causeOfDeathQC())
@@ -80,8 +83,9 @@ test_that("Test that causeOfDeathQC() works", {
 
 
 test_that("Test that vitalityQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(vitalityQC())
+  expect_equal(actual_rows, 3)
 
   # Compare expected and actual column names
   actual_cols <- colnames(vitalityQC())
@@ -95,8 +99,9 @@ test_that("Test that vitalityQC() works", {
 
 
 test_that("Test that seedlingSpeciesQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(seedlingSpeciesQC())
+  expect_equal(actual_rows, 6)
 
   # Compare expected and actual column names
   actual_cols <- colnames(seedlingSpeciesQC())
@@ -110,8 +115,9 @@ test_that("Test that seedlingSpeciesQC() works", {
 
 
 test_that("Test that heightClassQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+  # Compare number of rows returned
+  actual_rows <- nrow(heightClassQC())
+  expect_equal(actual_rows, 2)
 
   # Compare expected and actual column names
   actual_cols <- colnames(heightClassQC())
@@ -120,5 +126,20 @@ test_that("Test that heightClassQC() works", {
 
   # Check that function returns a database
   returnType <- heightClassQC()
+  expect_s3_class(returnType, "data.frame")
+})
+
+test_that("Test that recentlyDeadSeedlingQC() works", {
+  # Compare number of rows returned
+  actual_rows <- nrow(recentlyDeadSeedlingQC())
+  expect_equal(actual_rows, 1)
+
+  # Compare expected and actual column names
+  actual_cols <- colnames(recentlyDeadSeedlingQC())
+  expected_cols <- c("locationID", "subplot", "tag", "vitality", "uniqueID", "count")
+  expect_equal(actual_cols, expected_cols)
+
+  # Check that function returns a database
+  returnType <- recentlyDeadSeedlingQC()
   expect_s3_class(returnType, "data.frame")
 })
