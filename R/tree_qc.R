@@ -1,8 +1,5 @@
-# TODO: maybe add QC functions that check things like if dbh or height
-#is more than two standard deviations away from the mean/median
 
-
-#' Return a list of trees that have duplicate tags within a plot/tract
+#' Return a list of trees that have duplicate tags within a plot/subplot
 treeDuplicateTagQC <- function(){
   # Returns tree records with duplicate tags
   treeDuplicateTag <- get_data("Tree")$data$Tree %>%
@@ -35,7 +32,7 @@ stemLetterQC <- function(){
 
 #' Return a list of dead trees that have a missing cause of death or one that does not match domain values
 treeCauseOfDeathQC <- function(){
-  causeOfDeathList <- get_data("metadata")$metadata$categories %>% filter(attributeName == "causeOfDeath")
+  causeOfDeathList <- get_data("metadata")$metadata$categories %>% dplyr::filter(attributeName == "causeOfDeath")
   causeOfDeathList <- causeOfDeathList[['definition']]
 
   causeOfDeathFlag <- get_data("Tree")$data$Tree %>%
@@ -46,15 +43,55 @@ treeCauseOfDeathQC <- function(){
   return(causeOfDeathFlag)
 }
 
-#' Return list of trees with heights greater than 50 m or missing
+
+#' Return list of trees with a height greater than the median plus three standard deviations or missing
+# TODO: is there a better method to finding outliers
 treeHeightQC <- function(){
 
+  # Trees with missing DBH
+  treeHeightNAFlag <- get_data("Tree")$data$Tree %>%
+    dplyr::select(eventID, park, locationID, eventDate, subplot, tag, vitality, treeHeight_m, scientificName) %>%
+    dplyr::filter(is.na(treeHeight_m) | treeHeight_m == 999 | treeHeight_m == -999)
+
+  # Trees with a DBH more than three standard deviations greater than the median
   treeHeightFlag <- get_data("Tree")$data$Tree %>%
-    dplyr::select(eventID, park, locationID, eventDate, subplot, tag, treeHeight_m, vitality) %>%
-    # Filter for trees with heights greater than 50 m or missing
-    dplyr::filter((treeHeight_m > 50 & treeHeight_m != 999) | is.na(treeHeight_m) | treeHeight_m == 999 | treeHeight_m == -999)
+    dplyr::select(eventID, park, locationID, eventDate, subplot, tag, vitality, treeHeight_m, scientificName) %>%
+    # Filter out any DBH entries that are NA
+    dplyr::filter(!is.na(treeHeight_m) | treeHeight_m != 999 | treeHeight_m != -999) %>%
+    dplyr::group_by(scientificName) %>%
+    # Find three standard deviations of the DBH for each species
+    dplyr::mutate(threeStandardDeviations = mean(treeHeight_m)+(3*sd(treeHeight_m))) %>%
+    dplyr::filter(treeHeight_m > threeStandardDeviations)
+
+  # Bind back together and return
+  treeHeightFlag <- dplyr::bind_rows(treeHeightFlag, treeHeightNAFlag)
 
   return(treeHeightFlag)
+}
+
+#' Return a list of trees with a DBH greater than the median plus three standard deviations or missing
+# TODO: is there a better method to finding outliers
+dbhQC <- function(){
+
+  # Trees with missing DBH
+  dbhNAFlag <- get_data("Tree")$data$Tree %>%
+    dplyr::select(eventID, park, locationID, eventDate, subplot, tag, vitality, treeDBH_cm, scientificName) %>%
+    dplyr::filter(is.na(treeDBH_cm) | treeDBH_cm == 999 | treeDBH_cm == -999)
+
+  # Trees with a DBH more than three standard deviations greater than the median
+  dbhFlag <- get_data("Tree")$data$Tree %>%
+    dplyr::select(eventID, park, locationID, eventDate, subplot, tag, vitality, treeDBH_cm, scientificName) %>%
+    # Filter out any DBH entries that are NA
+    dplyr::filter(!is.na(treeDBH_cm) | treeDBH_cm != 999 | treeDBH_cm != -999) %>%
+    dplyr::group_by(scientificName) %>%
+    # Find three standard deviations of the DBH for each species
+    dplyr::mutate(threeStandardDeviations = mean(treeDBH_cm)+(3*sd(treeDBH_cm))) %>%
+    dplyr::filter(treeDBH_cm > threeStandardDeviations)
+
+  # Bind back together and return
+  dbhFlag <- dplyr::bind_rows(dbhFlag, dbhNAFlag)
+
+  return(dbhFlag)
 }
 
 #' Return list of recently dead PIAL trees with a null mortality year
@@ -123,16 +160,6 @@ crownKillUpperQC <- function() {
                                                    & is.na(crownKill_Upper_percent) & (!is.na(crownKill_Mid_percent) | !is.na(crownKill_Lower_percent))))
 
   return(crownKillLowerFlag)
-}
-
-#' Return a list of trees with either missing DBH or a DBH greater than 200 cm
-dbhQC <- function(){
-
-  dbhFlag <- get_data("Tree")$data$Tree %>%
-    dplyr::select(eventID, park, locationID, eventDate, subplot, tag, treeDBH_cm) %>%
-    dplyr::filter((treeDBH_cm > 200 & treeDBH_cm != 999) | is.na(treeDBH_cm) | treeDBH_cm == 999 | treeDBH_cm == -999)
-
-  return(dbhFlag)
 }
 
 #' Return a list of trees either with a missing subplot number or a subplot number not within 1-5
@@ -267,7 +294,7 @@ recentlyDeadTreeQC <- function() {
     dplyr::filter(vitality == 'Recently Dead') %>%
     dplyr::group_by(locationID, subplot, tag, vitality, uniqueID) %>%
     # Count number of entries for each tree
-    dplyr::summarise(count = n()) %>%
+    dplyr::summarise(count = dplyr::n()) %>%
     # Filter for only trees that have multiple recently dead entries
     dplyr::filter(count >1)
 

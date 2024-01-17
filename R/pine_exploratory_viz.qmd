@@ -123,8 +123,8 @@ sitesData <- pine$data$Site %>%
 ## Seedling Graphs
 
 ::: panel-tabset
-
 ### Species
+
 ```{r}
 # Seedling species by year
 seedlingSpecs <- pine$data$Seedling %>%
@@ -142,6 +142,7 @@ ggplotly(seedlingSpecs)
 ```
 
 ### Community
+
 ```{r}
 # height of seedling by elevation or latitude
 seedlingHeight <- pine$data$Seedling %>%
@@ -168,6 +169,7 @@ ggplotly(seedlingHeightGraph)
 ```
 
 ### Height Percent
+
 ```{r}
 # Graph percent of each height class for each elevation group
 # TODO: reorder graph so smallest height class is at the bottom
@@ -189,6 +191,7 @@ ggplotly(seedlingPercentGraph)
 ```
 
 ### Seedlings by Site
+
 ```{r}
 # Number of seedlings per site
 # TODO if a seedling is listed in more than one year it is counted twice
@@ -207,15 +210,13 @@ seedingSiteGraph <- pine$data$Seedling %>%
 
 ggplotly(seedingSiteGraph)
 ```
-
-
 :::
 
 ## Tree Graphs
 
 ::: panel-tabset
-
 ##### Latitude
+
 ```{r}
 # Plot of Percentage of Tree Species by UTM Northing
 # TODO: could add count in the popup when you mouse over a section of the graph
@@ -245,6 +246,7 @@ ggplotly(tree_pct_plot)
 ```
 
 ##### Community
+
 ```{r}
 # Graph of tree count by elevation group
 # TODO: chnage from elevation group to community
@@ -265,6 +267,7 @@ ggplotly(treeElevation2Graph)
 ```
 
 ##### Infestation
+
 ```{r}
 # Count the number of each type of infestation for each year
 # TODO: what are branch cankers A and I? Also I think we could group the bole cankers and branch cankers into one group each probably (or two depending on what A and I mean)
@@ -295,6 +298,7 @@ ggplotly(infestationGraph)
 ```
 
 ##### Mistletoe
+
 ```{r}
 # Mistletoe infestation by year
 pine$data$Tree %>% ggplot(aes(x = factor(year(eventDate)), fill = mistletoe))  + 
@@ -310,6 +314,7 @@ pine$data$Tree %>% ggplot(aes(x = factor(year(eventDate)), fill = mistletoe))  +
 ```
 
 ##### Vitality
+
 ```{r}
 # Tree status by Year
 pine$data$Tree %>%
@@ -325,6 +330,7 @@ pine$data$Tree %>%
 ```
 
 ##### Height
+
 ```{r}
 # Tree Height
 # TODO Label tree height categories
@@ -345,6 +351,7 @@ ggplotly(treeHeightGraph)
 ```
 
 ##### DBH
+
 ```{r}
 # Count of trees by DBH group 
 treeDBHGraph <- pine$data$Tree %>%
@@ -364,6 +371,7 @@ ggplotly(treeDBHGraph)
 ```
 
 ##### Cause of Death
+
 ```{r}
 # # Graph of the death types each year
 # causeOfDeathGraph <- pine$data$Tree %>%
@@ -382,6 +390,7 @@ ggplotly(treeDBHGraph)
 ```
 
 ##### Height by Species
+
 ```{r}
 # Box plot of the heights of different species
 heightBySpeciesGraph <- pine$data$Tree %>%
@@ -402,6 +411,7 @@ ggplotly(heightBySpeciesGraph)
 ```
 
 ##### Dead Species
+
 ```{r}
 # # Recently dead species by year
 # speciesDeadGraph <- pine$data$Tree %>%
@@ -419,7 +429,4 @@ ggplotly(heightBySpeciesGraph)
 # 
 # ggplotly(speciesDeadGraph)
 ```
-
 :::
-
-

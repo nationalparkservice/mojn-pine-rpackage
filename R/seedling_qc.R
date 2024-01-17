@@ -33,7 +33,7 @@ missingTagQC <- function(){
 #' Return a list of seedling records with duplicate tags
 duplicateSeedlingTagQC <- function() {
   seedlingDuplicateTag <- get_data("Seedling")$data$Seedling %>%
-    dplyr::group_by(eventID, locationID, eventDate, subplot, tag, scientificName) %>%
+    dplyr::group_by(locationID, eventDate, subplot, tag) %>%
     dplyr::summarize(countTotal = dplyr::n()) %>%
     dplyr::filter((!is.na(tag) & countTotal > 1))
 
@@ -100,7 +100,7 @@ recentlyDeadSeedlingQC <- function() {
     dplyr::filter(vitality == 'RD') %>%
     dplyr::group_by(locationID, subplot, tag, vitality, uniqueID) %>%
     # Count number of entries for each seedling
-    dplyr::summarise(count = n()) %>%
+    dplyr::summarise(count = dplyr::n()) %>%
     # Filter for only seedlings that have multiple recently dead entries
     dplyr::filter(count >1)
 
