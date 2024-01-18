@@ -1,6 +1,9 @@
 # for QC unit tests use load pine with location of fake data
 
-pine <- fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+library(tidyverse)
+data_dir = "data/final"
+database_dir = "data/FNP_MOJN_Primary.accdb"
+pine <- fiveneedlepine::loadPine(database_dir)
 
 
 set.seed(2023)
@@ -78,6 +81,8 @@ seedlingFakeData2 <- seedlingFakeData2 %>%
     .default = vitality))
 
 
+
+
 set.seed(2024)
 
 # Make fake tree data
@@ -122,10 +127,6 @@ treeFakeData2 <- treeFakeData2 %>%
       (locationID == "GRBA_N_209" & subplot == 5 & tag == 1567) ~ "Recently Dead",
       .default = vitality))
 
-# TODO To fail treeHeightQC: make some of the trees have very large heights or missing heights, might not have to change anything to fail this one
-
-# TODO To fail dbhQC: make some of the trees have very large DBH or missing DBH, might not have to change anything to fail this one
-
 # To fail coneCountQC: make some trees have cones but no cone count and some have no cones but cone count is populated
 treeFakeData2 <- treeFakeData2 %>%
   dplyr::mutate(
@@ -152,7 +153,6 @@ treeFakeData2 <- treeFakeData2 %>%
 
 # To fail boleCankersILowerQC: make some of the trees have non-valid entries in the lower bole canker columns
 
-
 # TODO: FIX THIS
 # treeFakeData2 <- treeFakeData2 %>%
 #   dplyr::mutate(
@@ -172,10 +172,6 @@ treeFakeData2 <- treeFakeData2 %>%
 #     .default = boleCanks_ITypes_Lower)
 #   )
 
-
-
-
-
 # To fail boleCankersIMiddleQC: make some of the trees have non-valid entries in the middle bole canker columns
 
 # To fail boleCankersIUpperQC: make some of the trees have non-valid entries in the upper bole canker columns
@@ -185,6 +181,7 @@ treeFakeData2 <- treeFakeData2 %>%
 # To fail branchCankersIMiddleQC: make some of the trees have a non-valid response in the middle branch canker columns
 
 # To fail branchCankersIUpperQC: make some of the trees have non-valid entries in the upper branch canker columns
+
 
 # To fail treeSpeciesQC: make some scientific names NA or blank
 treeFakeData2[sample(1:480, 3, replace=FALSE), 'scientificName'] =  ""
@@ -198,8 +195,16 @@ treeFakeData2 <- treeFakeData2 %>%
     .default = vitality))
 
 
-
 # To fail mortalityYearQC: make some of the recently dead PIAL trees have a null mortality year
+# treeFakeData2 <- treeFakeData2 %>%
+#   # Make one tree PIAL
+#   dplyr::mutate(
+#     scientificName = dplyr::case_when(
+#       () ~ 'Pinus albicaulis',
+#       .default = scientificName
+#     )
+#   )
+  # Make that tree be RD but have a null mortality year
 
 # To fail crownHealthQC: make some trees have crown health that isn't a domain value or live PIAL trees with missing crown health
 
@@ -210,7 +215,19 @@ treeFakeData2 <- treeFakeData2 %>%
 # To fail crownKillUpperQC: make some of the trees have upper crown kill more than 100% and live PIAL trees have a null upper crown kill but not null in both middle and lower crown kill percents
 
 
-# Write fake data to csvs
-readr::write_csv(visitFakeData, file = "Visit.csv")
-readr::write_csv(seedlingFakeData2, file = "Seedling.csv")
-readr::write_csv(treeFakeData2, file = "Tree.csv")
+# Write fake data to CSVs
+
+# Location where the data should be saved
+dataPath <- here::here("tests", "testthat", "testData")
+# Location where the dictionary should be saved
+dictionaryPath <- here::here("tests", "testthat", "testData", "dictionary")
+
+# Run writePine() to save dictionaries to testData folder
+fiveneedlepine::writePine(data_dir = dataPath, dictionary_dir = dictionaryPath)
+
+# Save fake data to testData folder
+readr::write_csv(visitFakeData, file = paste0(dataPath, "/Visit.csv"))
+readr::write_csv(seedlingFakeData2, file = paste0(dataPath, "/Seedling.csv"))
+readr::write_csv(treeFakeData2, file = paste0(dataPath, "/Tree.csv"))
+
+

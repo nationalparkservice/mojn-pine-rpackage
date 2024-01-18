@@ -118,7 +118,7 @@ coneCountQC <- function(){
 
 #' Return list of trees who's crown health isn't a domain value or live PIAL trees with missing crown health
 crownHealthQC <- function(){
-  crownHealthList <- get_data("metadata")$metadata$categories %>% filter(attributeName == "crownHealth")
+  crownHealthList <- get_data("metadata")$metadata$categories %>% dplyr::filter(attributeName == "crownHealth")
   crownHealthList <- crownHealthList[['code']]
 
   crownHealthFlag <- get_data("Tree")$data$Tree %>%

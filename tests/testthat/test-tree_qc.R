@@ -1,6 +1,5 @@
 # Load test data
-loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/tests/testthat/testData", dictionary_dir = "testData/dictionary")
-
+loadPine(data_path = test_path("testData"), dictionary_dir = test_path("testData", "dictionary"))
 
 test_that("Test that treeDuplicateTagQC() works", {
   # Compare number of rows returned
@@ -199,8 +198,6 @@ test_that("Test that boleCankersILowerQC() works", {
 
 
 test_that("Test that boleCankersIMiddleQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
   # Compare expected and actual column names
   actual_cols <- colnames(boleCankersIMiddleQC())
@@ -214,8 +211,6 @@ test_that("Test that boleCankersIMiddleQC() works", {
 
 
 test_that("Test that boleCankersIUpperQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
   # Compare expected and actual column names
   actual_cols <- colnames(boleCankersIUpperQC())
@@ -229,8 +224,6 @@ test_that("Test that boleCankersIUpperQC() works", {
 
 
 test_that("Test that branchCankersILowerQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
   # Compare expected and actual column names
   actual_cols <- colnames(branchCankersILowerQC())
@@ -244,8 +237,6 @@ test_that("Test that branchCankersILowerQC() works", {
 
 
 test_that("Test that branchCankersIMiddleQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
   # Compare expected and actual column names
   actual_cols <- colnames(branchCankersIMiddleQC())
@@ -259,8 +250,6 @@ test_that("Test that branchCankersIMiddleQC() works", {
 
 
 test_that("Test that branchCankersIUpperQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
   # Compare expected and actual column names
   actual_cols <- colnames(branchCankersIUpperQC())
@@ -274,8 +263,6 @@ test_that("Test that branchCankersIUpperQC() works", {
 
 
 test_that("Test that crownHealthQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
   # Compare expected and actual column names
   actual_cols <- colnames(crownHealthQC())
@@ -289,8 +276,6 @@ test_that("Test that crownHealthQC() works", {
 
 
 test_that("Test that crownKillLowerQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
   # Compare expected and actual column names
   actual_cols <- colnames(crownKillLowerQC())
@@ -304,8 +289,6 @@ test_that("Test that crownKillLowerQC() works", {
 
 
 test_that("Test that crownKillMiddleQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
   # Compare expected and actual column names
   actual_cols <- colnames(crownKillMiddleQC())
@@ -319,8 +302,6 @@ test_that("Test that crownKillMiddleQC() works", {
 
 
 test_that("Test that crownKillUpperQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
   # Compare expected and actual column names
   actual_cols <- colnames(crownKillUpperQC())
@@ -334,8 +315,6 @@ test_that("Test that crownKillUpperQC() works", {
 
 
 test_that("Test that mortalityYearQC() works", {
-  data_dir = "data/final"
-  fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
   # Compare expected and actual column names
   actual_cols <- colnames(mortalityYearQC())

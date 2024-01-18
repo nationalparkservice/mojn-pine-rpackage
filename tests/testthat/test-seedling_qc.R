@@ -1,5 +1,6 @@
 # Load test data
-loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/tests/testthat/testData", dictionary_dir = "testData/dictionary")
+loadPine(data_path = test_path("testData"), dictionary_dir = test_path("testData", "dictionary"))
+
 
 test_that("Test that numberOfSubplotsQC() works", {
   # Compare number of rows returned
