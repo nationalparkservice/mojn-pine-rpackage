@@ -36,14 +36,14 @@ library(tidyverse)
 ```{r}
 #| output: false
 
-data_dir = here::here("data")
+data_dir = "data"
 # TODO: change to relative directory
 #pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
 pine <- fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 #pine <- fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_AllNetwork_2011-2022_20230221.accdb")
-source("cleaningData.R")
+#source("cleaningData.R")
+source("../calculations.R")
 pine <- cleaningPine(pine)
-source("calculations.R")
 ```
 
 ## Map
