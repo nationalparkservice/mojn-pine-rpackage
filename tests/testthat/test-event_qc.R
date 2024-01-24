@@ -1,6 +1,10 @@
 # Load test data
 loadPine(data_path = test_path("testData"), dictionary_dir = test_path("testData", "dictionary"))
 
+# Declare Visit column names as global variables to reduce warning in R CMD Check
+globalVariables(colnames(loadPine(data_path = test_path("testData"), dictionary_dir = test_path("testData", "dictionary"))$data$Visit))
+
+
 test_that("Test that noSeedlingDataQC() works", {
 
   # Compare number of rows returned
@@ -20,7 +24,7 @@ test_that("Test that noSeedlingDataQC() works", {
   # check that first row has expected values
   expect_equal(returned_data[[1,1]], "GRBA_N_010")
   # Check that eventDate column has correct type
-  expect_s3_class(returned_data$eventDate, "POSIXt")
+  expect_s3_class(returned_data$eventDate, c("Date", "POSIXt"))
 })
 
 
@@ -42,6 +46,6 @@ test_that("Test that noTreeDataQC() works", {
   # check that first row has expected values
   expect_equal(returned_data[[1,1]], "GRBA_N_201")
   # Check that eventDate column has correct type
-  expect_s3_class(returned_data$eventDate, "POSIXt")
+  expect_s3_class(returned_data$eventDate, c("Date", "POSIXt"))
 })
 

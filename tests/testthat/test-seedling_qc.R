@@ -1,6 +1,8 @@
 # Load test data
 loadPine(data_path = test_path("testData"), dictionary_dir = test_path("testData", "dictionary"))
 
+# Declare Seedling column names as global variables to reduce warning in R CMD Check
+globalVariables(colnames(loadPine(data_path = test_path("testData"), dictionary_dir = test_path("testData", "dictionary"))$data$Seedling))
 
 test_that("Test that numberOfSubplotsQC() works", {
   # Compare number of rows returned
@@ -42,7 +44,7 @@ test_that("Test that missingTagQC() works", {
 
   # Compare expected and actual column names
   actual_cols <- colnames(missingTagQC())
-  expected_cols <- c("eventID", "locationID", "eventDate", "subplot", "tag", "scientificName")
+  expected_cols <- c("eventID", "locationID", "eventDate", "subplot", "tag", "scientificName", "vitality")
   expect_equal(actual_cols, expected_cols)
 
   # Check that function returns a database
@@ -54,11 +56,11 @@ test_that("Test that missingTagQC() works", {
 test_that("Test that duplicateSeedlingTagQC() works", {
   # Compare number of rows returned
   actual_rows <- nrow(duplicateSeedlingTagQC())
-  expect_equal(actual_rows, 1)
+  expect_equal(actual_rows, 2)
 
   # Compare expected and actual column names
   actual_cols <- colnames(duplicateSeedlingTagQC())
-  expected_cols <- c("locationID", "eventDate", "subplot", "tag", "countTotal")
+  expected_cols <- c("locationID", "subplot", "tag", "year", "scientificName", "countTotal")
   expect_equal(actual_cols, expected_cols)
 
   # Check that function returns a database

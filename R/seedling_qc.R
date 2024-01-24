@@ -24,17 +24,21 @@ subplotQC <- function() {
 #' Return a list of seedlings with missing tags
 missingTagQC <- function(){
   seedlingDuplicateTag <- get_data("Seedling")$data$Seedling %>%
-    dplyr::select(eventID, locationID, eventDate, subplot, tag, scientificName) %>%
+    dplyr::select(eventID, locationID, eventDate, subplot, tag, scientificName, vitality) %>%
     dplyr::filter(scientificName != 'No seedlings' & is.na(tag))
 
   return(seedlingDuplicateTag)
 }
 
-#' Return a list of seedling records with duplicate tags
+#' Return a list of seedling records with duplicate tags. Tags should be unique within the subplots in plots
 duplicateSeedlingTagQC <- function() {
   seedlingDuplicateTag <- get_data("Seedling")$data$Seedling %>%
-    dplyr::group_by(locationID, eventDate, subplot, tag) %>%
-    dplyr::summarize(countTotal = dplyr::n()) %>%
+    dplyr::mutate(year = as.numeric(format(eventDate,'%Y'))) %>%
+    dplyr::select(locationID, subplot, tag, year, scientificName) %>%
+    # Find multiple entries of tags within the same year
+    # TODO: Could change this to find repeat tags within cycles
+    dplyr::group_by(locationID, year, subplot, tag) %>%
+    dplyr::mutate(countTotal = dplyr::n()) %>%
     dplyr::filter((!is.na(tag) & countTotal > 1))
 
   return(seedlingDuplicateTag)

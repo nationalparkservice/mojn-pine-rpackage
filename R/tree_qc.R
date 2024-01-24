@@ -1,12 +1,29 @@
+# TODO: update so it dynamically gets all the column names
+globalVariables(c("network","park","sampleFrame","panel","locationID",
+                  "eventDate","subplot","tag","scientificName","clumpNumber",
+                  "stemLetter","tagMoved","tagReplaced","treeHeight_m","treeDBH_cm",
+                  "krumholtz","vitality","causeOfDeath","causeOfDeathType","estimatedMortalityYear",
+                  "crownHealth","crownKill_Upper_percent","crownKill_Mid_percent","crownKill_Lower_percent","branchCanks_A_Upper",
+                  "branchCanks_I_Upper","branchCanks_ITypes_Upper","branchCanks_A_Mid","branchCanks_I_Mid","branchCanks_ITypes_Mid",
+                  "branchCanks_A_Lower","branchCanks_I_Lower","branchCanks_ITypes_Lower","boleCankers_A_Upper","boleCankers_I_Upper",
+                  "boleCankers_ITypes_Upper","boleCankers_A_Mid","boleCankers_I_Mid","boleCankers_ITypes_Mid","boleCankers_A_Lower",
+                  "boleCankers_I_Lower","boleCanks_ITypes_Lower","pineBeetleJGalleries","pineBeetlePitchTube","pineBeetleFrass",
+                  "mistletoe","femaleCones","coneCount","treeNotes","validationNotes",
+                  "eventID" ))
 
-#' Return a list of trees that have duplicate tags within a plot/subplot
+#' Return a list of trees that have duplicate tags. Tags should be unique within the subplots in plots
 treeDuplicateTagQC <- function(){
+
   # Returns tree records with duplicate tags
   treeDuplicateTag <- get_data("Tree")$data$Tree %>%
-    dplyr::select(eventID, park, locationID, eventDate, subplot, tag, scientificName) %>%
-    dplyr::group_by(locationID, eventDate, subplot, tag)%>%
+    dplyr::mutate(year = as.numeric(format(eventDate,'%Y'))) %>%
+    dplyr::select(park, locationID, year, subplot, tag, scientificName) %>%
+    # Find multiple entries of tags within the same year
+    # TODO: Could change this to find repeat tags within cycles
+    dplyr::group_by(locationID, year, subplot, tag)%>%
     dplyr::mutate(countTotal = dplyr::n()) %>%
-    dplyr::filter(!is.na(tag) & countTotal > 1)
+    dplyr::filter(!is.na(tag) & countTotal > 1) %>%
+    dplyr::arrange(locationID, subplot, tag)
 
   return(treeDuplicateTag)
 }
@@ -14,7 +31,7 @@ treeDuplicateTagQC <- function(){
 #' Return list of alive trees with no tag
 treeMissingTagQC <- function(){
   missingTag <- get_data("Tree")$data$Tree %>%
-    dplyr::select(eventID, park, locationID, eventDate, subplot, tag, scientificName) %>%
+    dplyr::select(eventID, park, locationID, eventDate, subplot, tag, scientificName, vitality) %>%
     dplyr::filter(is.na(tag))
 
   return(missingTag)
@@ -57,16 +74,31 @@ treeHeightQC <- function(){
   treeHeightFlag <- get_data("Tree")$data$Tree %>%
     dplyr::select(eventID, park, locationID, eventDate, subplot, tag, vitality, treeHeight_m, scientificName) %>%
     # Filter out any DBH entries that are NA
-    dplyr::filter(!is.na(treeHeight_m) | treeHeight_m != 999 | treeHeight_m != -999) %>%
+    dplyr::filter(!is.na(treeHeight_m) & treeHeight_m != 999 & treeHeight_m != -999) %>%
     dplyr::group_by(scientificName) %>%
     # Find three standard deviations of the DBH for each species
-    dplyr::mutate(threeStandardDeviations = mean(treeHeight_m)+(3*sd(treeHeight_m))) %>%
+    dplyr::mutate(threeStandardDeviations = round(mean(treeHeight_m)+(3*sd(treeHeight_m)), 2)) %>%
     dplyr::filter(treeHeight_m > threeStandardDeviations)
 
   # Bind back together and return
   treeHeightFlag <- dplyr::bind_rows(treeHeightFlag, treeHeightNAFlag)
 
   return(treeHeightFlag)
+}
+
+# TODO: update so cut off is based on how many years are between the visits??
+treeHeightDifferenceQC <- function(){
+
+  treeHeightDifferenceFlag <- get_data("Tree")$data$Tree %>%
+    dplyr::select(eventDate, park, locationID, subplot, tag, vitality, treeHeight_m, scientificName) %>%
+    dplyr::filter(!is.na(treeHeight_m) & treeHeight_m != 999 & treeHeight_m != -999) %>%
+    dplyr::group_by(park, locationID, subplot, tag, scientificName) %>%
+    dplyr::mutate(percentChange = round((((max(treeHeight_m) - min(treeHeight_m))/min(treeHeight_m))*100), 2),
+                  count = dplyr::n()) %>%
+    dplyr::filter(percentChange > 33) %>%
+    dplyr::arrange(locationID, subplot, tag)
+
+  return(treeHeightDifferenceFlag)
 }
 
 #' Return a list of trees with a DBH greater than the median plus three standard deviations or missing
@@ -94,19 +126,32 @@ dbhQC <- function(){
   return(dbhFlag)
 }
 
+dbhDifferenceQC <- function(){
+
+  dbhDifferenceFlag <- get_data("Tree")$data$Tree %>%
+    dplyr::select(eventDate, park, locationID, subplot, tag, vitality, treeDBH_cm, scientificName) %>%
+    dplyr::filter(!is.na(treeDBH_cm) & treeDBH_cm != 999 & treeDBH_cm != -999) %>%
+    dplyr::group_by(park, locationID, subplot, tag, scientificName) %>%
+    dplyr::mutate(percentChange = round((((max(treeDBH_cm) - min(treeDBH_cm))/min(treeDBH_cm))*100), 2),
+                  count = dplyr::n()) %>%
+    dplyr::filter(percentChange > 33) %>%
+    dplyr::arrange(locationID, subplot, tag)
+
+  return(dbhDifferenceFlag)
+}
+
 #' Return list of recently dead PIAL trees with a null mortality year
 mortalityYearQC <- function() {
 
   mortalityYearFlag <- get_data("Tree")$data$Tree %>%
     dplyr::select(eventID, park, locationID, eventDate, subplot, tag, estimatedMortalityYear, scientificName, vitality) %>%
     # Filter for trees that are recently dead, species is PIAL/Pinus albicaulis, and mortality year is null
-    dplyr::filter(vitality == 'RD' & scientificName == 'Pinus albicaulis' & is.na(estimatedMortalityYear))
+    dplyr::filter(vitality == 'Recently Dead' & scientificName == 'Pinus albicaulis' & is.na(estimatedMortalityYear))
 
   return(mortalityYearFlag)
 }
 
 #' Return list of trees where cones exist but there is no cone count or where cones do not exist but cone count is populated
-#' TODO: check this, cone count might not be recorded for non target species
 coneCountQC <- function(){
 
   coneCountFlag <- get_data("Tree")$data$Tree %>%
@@ -128,35 +173,35 @@ crownHealthQC <- function(){
   return(crownHealthFlag)
 }
 
-#' Return a list of trees whose lower crown kill is more than 100% and alive PIAL trees that have a null lower crown kill but are not null in both upper and middle crown kill percents
+#' Return a list of trees whose lower crown kill is more than 100% or live PIAL trees that have a null lower crown kill but are not null in both upper and middle crown kill percents
 crownKillLowerQC <- function() {
 
   crownKillLowerFlag <- get_data("Tree")$data$Tree %>%
     dplyr::select(eventID, park, locationID, eventDate, subplot, tag, vitality, scientificName, crownKill_Lower_percent, crownKill_Mid_percent, crownKill_Upper_percent) %>%
-    dplyr::filter(crownKill_Lower_percent > 100 | (vitality == "L" & scientificName == 'Pinus albicaulis'
+    dplyr::filter(crownKill_Lower_percent > 100 | (vitality == "Live" & scientificName == 'Pinus albicaulis'
                                                    & is.na(crownKill_Lower_percent) & (!is.na(crownKill_Upper_percent) | !is.na(crownKill_Mid_percent))))
 
   return(crownKillLowerFlag)
 }
 
-#' Return a list of trees whose middle crown kill is more than 100% and alive PIAL trees that have a null middle crown kill but are not null in both upper and lower crown kill percents
+#' Return a list of trees whose middle crown kill is more than 100% or live PIAL trees that have a null middle crown kill but are not null in both upper and lower crown kill percents
 crownKillMiddleQC <- function() {
 
   crownKillLowerFlag <- get_data("Tree")$data$Tree %>%
     dplyr::select(eventID, park, locationID, eventDate, subplot, tag, vitality, scientificName, crownKill_Lower_percent, crownKill_Mid_percent, crownKill_Upper_percent) %>%
-    dplyr::filter(crownKill_Mid_percent > 100 | (vitality == "L" & scientificName == 'Pinus albicaulis'
+    dplyr::filter(crownKill_Mid_percent > 100 | (vitality == "Live" & scientificName == 'Pinus albicaulis'
                                                  & is.na(crownKill_Mid_percent) & (!is.na(crownKill_Upper_percent) | !is.na(crownKill_Lower_percent))))
 
   return(crownKillLowerFlag)
 }
 
-#' Return a list of trees whose upper crown kill is more than 100% and alive PIAL trees that have a null upper crown kill but are not null in both middle and lower crown kill percents
+#' Return a list of trees whose upper crown kill is more than 100% or live PIAL trees that have a null upper crown kill but are not null in both middle and lower crown kill percents
 crownKillUpperQC <- function() {
 
   crownKillLowerFlag <- get_data("Tree")$data$Tree %>%
     dplyr::select(eventID, park, locationID, eventDate, subplot, tag, vitality, scientificName, crownKill_Lower_percent,
                   crownKill_Mid_percent, crownKill_Upper_percent) %>%
-    dplyr::filter(crownKill_Upper_percent > 100 | (vitality == "L" & scientificName == 'Pinus albicaulis'
+    dplyr::filter(crownKill_Upper_percent > 100 | (vitality == "Live" & scientificName == 'Pinus albicaulis'
                                                    & is.na(crownKill_Upper_percent) & (!is.na(crownKill_Mid_percent) | !is.na(crownKill_Lower_percent))))
 
   return(crownKillLowerFlag)
@@ -187,7 +232,7 @@ treeVitalityQC <- function(){
 #' Return a list of trees with non-valid responses in the lower bole canker columns
 boleCankersILowerQC <- function(){
 
-  boleCakers_I_LowerFlag <- get_data("Tree")$data$Tree %>%
+  boleCakers_I_LowerFlag <- fiveneedlepine:::get_data("Tree")$data$Tree %>%
     dplyr::select(eventID, park, locationID, eventDate, subplot, tag, boleCankers_I_Lower, boleCanks_ITypes_Lower) %>%
     # Filter for entries where lower bole canker infestation checkbox = Yes but infestation type is null
     dplyr::filter((boleCankers_I_Lower == 'Y' & is.na(boleCanks_ITypes_Lower))
@@ -274,7 +319,7 @@ branchCankersIUpperQC <- function(){
   return(branchCankers_I_UpperFlag)
 }
 
-#' Return list of trees with missing or empty scientific names or (scientific names not in look up table will import as a blank)
+#' Return list of trees with missing or blank scientific names or (scientific names not in look up table will import as a blank)
 treeSpeciesQC <- function(){
 
   speciesFlag <- get_data("Tree")$data$Tree %>%

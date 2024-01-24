@@ -1,6 +1,9 @@
 # Load test data
 loadPine(data_path = test_path("testData"), dictionary_dir = test_path("testData", "dictionary"))
 
+# Declare Tree column names as global variables to reduce warning in R CMD Check
+globalVariables(colnames(loadPine(data_path = test_path("testData"), dictionary_dir = test_path("testData", "dictionary"))$data$Tree))
+
 test_that("Test that treeDuplicateTagQC() works", {
   # Compare number of rows returned
   actual_rows <- nrow(treeDuplicateTagQC())
@@ -8,7 +11,7 @@ test_that("Test that treeDuplicateTagQC() works", {
 
   # Compare expected and actual column names
   actual_cols <- colnames(treeDuplicateTagQC())
-  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "scientificName", "countTotal")
+  expected_cols <- c("park", "locationID", "year", "subplot", "tag", "scientificName", "countTotal")
   expect_equal(actual_cols, expected_cols)
 
   # Check that function returns a database
@@ -26,7 +29,7 @@ test_that("Test that treeMissingTagQC() works", {
 
   # Compare expected and actual column names
   actual_cols <- colnames(treeMissingTagQC())
-  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "scientificName")
+  expected_cols <- c("eventID", "park", "locationID", "eventDate", "subplot", "tag", "scientificName", "vitality")
   expect_equal(actual_cols, expected_cols)
 
   # Check that function returns a database
@@ -263,6 +266,9 @@ test_that("Test that branchCankersIUpperQC() works", {
 
 
 test_that("Test that crownHealthQC() works", {
+  # Compare number of rows returned
+  actual_rows <- nrow(crownHealthQC())
+  expect_equal(actual_rows, 4)
 
   # Compare expected and actual column names
   actual_cols <- colnames(crownHealthQC())
@@ -276,6 +282,9 @@ test_that("Test that crownHealthQC() works", {
 
 
 test_that("Test that crownKillLowerQC() works", {
+  # Compare number of rows returned
+  actual_rows <- nrow(crownKillLowerQC())
+  expect_equal(actual_rows, 4)
 
   # Compare expected and actual column names
   actual_cols <- colnames(crownKillLowerQC())
@@ -289,6 +298,9 @@ test_that("Test that crownKillLowerQC() works", {
 
 
 test_that("Test that crownKillMiddleQC() works", {
+  # Compare number of rows returned
+  actual_rows <- nrow(crownKillMiddleQC())
+  expect_equal(actual_rows, 3)
 
   # Compare expected and actual column names
   actual_cols <- colnames(crownKillMiddleQC())
@@ -302,6 +314,9 @@ test_that("Test that crownKillMiddleQC() works", {
 
 
 test_that("Test that crownKillUpperQC() works", {
+  # Compare number of rows returned
+  actual_rows <- nrow(crownKillUpperQC())
+  expect_equal(actual_rows, 4)
 
   # Compare expected and actual column names
   actual_cols <- colnames(crownKillUpperQC())
@@ -315,6 +330,9 @@ test_that("Test that crownKillUpperQC() works", {
 
 
 test_that("Test that mortalityYearQC() works", {
+  # Compare number of rows returned
+  actual_rows <- nrow(mortalityYearQC())
+  expect_equal(actual_rows, 1)
 
   # Compare expected and actual column names
   actual_cols <- colnames(mortalityYearQC())
