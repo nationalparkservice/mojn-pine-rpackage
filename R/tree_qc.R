@@ -77,7 +77,7 @@ treeHeightQC <- function(){
     dplyr::filter(!is.na(treeHeight_m) & treeHeight_m != 999 & treeHeight_m != -999) %>%
     dplyr::group_by(scientificName) %>%
     # Find three standard deviations of the DBH for each species
-    dplyr::mutate(threeStandardDeviations = round(mean(treeHeight_m)+(3*sd(treeHeight_m)), 2)) %>%
+    dplyr::mutate(threeStandardDeviations = round(mean(treeHeight_m)+(3*stats::sd(treeHeight_m)), 2)) %>%
     dplyr::filter(treeHeight_m > threeStandardDeviations)
 
   # Bind back together and return
@@ -117,7 +117,7 @@ dbhQC <- function(){
     dplyr::filter(!is.na(treeDBH_cm) | treeDBH_cm != 999 | treeDBH_cm != -999) %>%
     dplyr::group_by(scientificName) %>%
     # Find three standard deviations of the DBH for each species
-    dplyr::mutate(threeStandardDeviations = mean(treeDBH_cm)+(3*sd(treeDBH_cm))) %>%
+    dplyr::mutate(threeStandardDeviations = mean(treeDBH_cm)+(3*stats::sd(treeDBH_cm))) %>%
     dplyr::filter(treeDBH_cm > threeStandardDeviations)
 
   # Bind back together and return

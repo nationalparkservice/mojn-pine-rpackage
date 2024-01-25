@@ -36,7 +36,6 @@ test_that("Test that subplotQC() works", {
 })
 
 
-# TODO: this currently fails devtools::test() but not when you run the file
 test_that("Test that missingTagQC() works", {
   # Compare number of rows returned
   actual_rows <- nrow(missingTagQC())

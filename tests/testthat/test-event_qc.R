@@ -6,7 +6,6 @@ globalVariables(colnames(loadPine(data_path = test_path("testData"), dictionary_
 
 
 test_that("Test that noSeedlingDataQC() works", {
-
   # Compare number of rows returned
   actual_rows <- nrow(noSeedlingDataQC())
   expect_equal(actual_rows, 5)

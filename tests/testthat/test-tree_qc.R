@@ -183,8 +183,6 @@ test_that("Test that recentlyDeadTreeQC() works", {
 })
 
 
-
-
 # The fake data has not been modified to fail the tests below
 
 test_that("Test that boleCankersILowerQC() works", {
