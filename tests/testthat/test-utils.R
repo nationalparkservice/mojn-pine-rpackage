@@ -8,7 +8,7 @@ for (tbl in data_names) {
   test_that(paste0("Data read from ", tbl, ".csv matches data read from database"), {
     csv <- csv_data$data[[tbl]]
     db <- db_data$data[[tbl]]
-    expect_true(all.equal(csv, db))
+    expect_equal(csv, db)
   })
 }
 
@@ -17,6 +17,6 @@ for (tbl in metadata_names) {
   test_that(paste0("Metadata read from ", tbl, ".csv matches metadata read from database"), {
     csv <- csv_data$metadata[[tbl]]
     db <- db_data$metadata[[tbl]]
-    expect_true(all.equal(csv, db))
+    expect_equal(csv, db)
   })
 }
