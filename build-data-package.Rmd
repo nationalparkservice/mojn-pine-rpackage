@@ -25,7 +25,7 @@ options(download.file.method="wininet")
 
 ```{r package_install, eval=FALSE}
 #install packages
-install.packages(c("devtools", "tidyverse")
+install.packages(c("devtools", "tidyverse"))
 devtools::install_github("nationalparkservice/NPSdataverse")
 ```
 
@@ -104,16 +104,16 @@ Specify where you taxonomic information is. this can be a single file or a list 
 data_taxa_tables <- c("Seedling.csv", "Tree.csv")
 
 # the column where your scientific names are within the data files.
-data_taxa_fields <- "scientificName"
+data_taxa_fields <- rep_along(data_taxa_tables, "scientificName")
 ```
 
 #### Geographic information
 Specify the tables and fields that contain geographic coordinates and site names. This information will be used to fill out the geographic coverage elements of the metadata. If your data package does not have geographic information skip this step. If the only geographic information you are supplying is the park units (and their bounding boxes) you can also skip this step; Park Units and the corresponding GPS coordinates for their bounding boxes will be added at a later step. If your coordinates are in UTMs and not GPS, try the [`convert_utm_to_ll()`](https://nationalparkservice.github.io/QCkit/reference/convert_utm_to_ll.html) function in the [QCkit package](https://nationalparkservice.github.io/QCkit/)
 ```{r geo_info}
-data_coordinates_table <- "Site.csv"
-data_latitude <- "decimalLatitude"
-data_longitude <- "decimalLongitude"
-data_sitename <- "Point_ID"
+# data_coordinates_table <- "Site.csv"
+# data_latitude <- "decimalLatitude"
+# data_longitude <- "decimalLongitude"
+# data_sitename <- "Point_ID"
 ```
 
 #### Temporal information
@@ -158,9 +158,18 @@ lapply(pine_attrs, function(tbl_attrs) {
 #### FUNCTION 3 - Data Table Categorical Variable
 This function Creates a "catvars_datafilename.txt" file for each data file that has columns with a class = categorical. These .txt files will include each unique 'code' and allow input of the corresponding 'definition'.NOTE that since the list of codes is harvested from the data itself, it's possible that additional codes may have been relevant/possible but they are not automatically included here. Consider your lookup lists carefully to see if additional options should be included (e.g if your dataset DPL values are all set to "Accepted" this  function will not include "Raw" or "Provisional" in the resulting file and you may want to add those manually). NOTE that if these files already exist from a previous run, they are not overwritten.
 ```{r cat_vars}
-EMLassemblyline::template_categorical_variables(path = working_folder, 
-                               data.path = working_folder, 
-                               write.file = TRUE)
+# Create category tables from categories data dictionary
+
+pine_cats <- pine_data$metadata$categories
+pine_attrs <- pine_data$metadata$fields %>%
+  dplyr::select(tableName, attributeName, class) %>%
+  dplyr::filter(class == "categorical") %>%
+  split(~ tableName)  # Split field metadata into a list with one dataframe per table
+lapply(pine_attrs, function(tbl_attrs) {
+  file_name <- paste0("catvars_", unique(tbl_attrs$tableName), ".txt")
+  cats <- dplyr::filter(pine_cats, attributeName %in% tbl_attrs$attributeName)
+  readr::write_tsv(cats, file = here::here(working_folder, file_name), na = "")
+})
 ```
 
 #### FUNCTION 4 - Geographic Coverage
