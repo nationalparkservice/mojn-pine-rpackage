@@ -125,7 +125,7 @@ loadPine <- function(data_path, dictionary_dir = data_path, dictionary_filenames
 
     # Read from CSV
     data <- mapply(function(table_name, file_name) {
-      df <- readr::read_csv(file.path(data_path, file_name), col_types = col_spec[[table_name]]) %>%
+      df <- readr::read_csv(file.path(data_path, file_name), col_types = col_spec[[table_name]], na = "") %>%
         tibble::as_tibble()  # convert to tibble to get rid of extra attributes that read_csv adds so that there is no difference b/w reading from access vs csv
     }, dict_tables$tableName, dict_tables$fileName)
 
