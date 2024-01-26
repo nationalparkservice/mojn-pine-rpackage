@@ -2,10 +2,16 @@
 % Please edit documentation in R/calculations.R
 \name{getBasalArea}
 \alias{getBasalArea}
-\title{basal area calculated for each tree in a plot}
+\title{Calculates basal area for every tree}
 \usage{
-getBasalArea(filteredData, siteCode)
+getBasalArea(treeData)
+}
+\arguments{
+\item{treeData}{the data to input into the function (tree table of pine data)}
+}
+\value{
+basal area calculated for every entry
 }
 \description{
-basal area calculated for each tree in a plot
+Calculates basal area for every tree
 }
