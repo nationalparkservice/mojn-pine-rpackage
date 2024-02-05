@@ -9,12 +9,26 @@ cleaningPine <- function(pine){
     dplyr::mutate(year = lubridate::year(lubridate::as_date(eventDate))) %>%
     # TODO: make more robust, would a visit to a panel ever be one year off
     # so something like make visit year the year the majority of visits are
-    dplyr::select(panel, year)%>%
-    dplyr::group_by(panel, year) %>%
+    dplyr::select(panel, year, park)%>%
+    dplyr::group_by(panel, year, park) %>%
     dplyr::summarize(n = dplyr::n()) %>%
-    dplyr::group_by(panel) %>%
+    dplyr::group_by(panel, park) %>%
+    dplyr::arrange(year) %>%
     dplyr::mutate(visitNumber = seq_along(year))
   # arrange year descending within panel descending
+
+
+  # visitNum <- pine$data$Visit %>%
+  #   dplyr::filter(repeatSample != 1) %>%
+  #   dplyr::mutate(year = lubridate::year(lubridate::as_date(eventDate))) %>%
+  #   # TODO: make more robust, would a visit to a panel ever be one year off
+  #   # so something like make visit year the year the majority of visits are
+  #   dplyr::select(panel, year)%>%
+  #   dplyr::group_by(panel, year) %>%
+  #   dplyr::summarize(n = dplyr::n()) %>%
+  #   dplyr::group_by(panel) %>%
+  #   dplyr::arrange(year, panel) %>%
+  #   dplyr::mutate(visitNumber = seq_along(year))
 
 
   # Seedling Data Wrangling
@@ -35,7 +49,7 @@ cleaningPine <- function(pine){
     dplyr::select(-uniqueSeedlingID) %>%
     dplyr::mutate(year = lubridate::year(lubridate::as_date(eventDate))) %>%
     # Join with table containing visit number
-    dplyr::left_join(visitNum, by = dplyr::join_by(panel, year)) %>%
+    dplyr::left_join(visitNum, by = dplyr::join_by(panel, year, park)) %>%
     dplyr::filter(!is.na(visitNumber))
 
   # Order the height classes in the correct order
@@ -57,7 +71,7 @@ cleaningPine <- function(pine){
   pine$data$Tree <- pine$data$Tree %>%
     dplyr::filter(!(uniqueTreeID %in% pulledTrees$uniqueTreeID)) %>%
     # Join with table containing visit number
-    dplyr::left_join(visitNum, by = dplyr::join_by(panel, year)) %>%
+    dplyr::left_join(visitNum, by = dplyr::join_by(panel, year, park)) %>%
     # TODO update
     dplyr::filter(!is.na(visitNumber)) %>%
     # Remove rows where DBH is NA so calculations can be performed

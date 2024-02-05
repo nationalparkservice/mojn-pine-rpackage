@@ -11,6 +11,9 @@ globalVariables(c("network","park","sampleFrame","panel","locationID",
                   "mistletoe","femaleCones","coneCount","treeNotes","validationNotes",
                   "eventID" ))
 
+
+
+
 #' Return a list of trees that have duplicate tags. Tags should be unique within the subplots in plots
 treeDuplicateTagQC <- function(){
 
@@ -87,6 +90,7 @@ treeHeightQC <- function(){
 }
 
 # TODO: update so cut off is based on how many years are between the visits??
+# TODO: summarize data so each error only returns one row (return both heights and the difference between them)
 treeHeightDifferenceQC <- function(){
 
   treeHeightDifferenceFlag <- get_data("Tree")$data$Tree %>%
@@ -126,6 +130,7 @@ dbhQC <- function(){
   return(dbhFlag)
 }
 
+# TODO: summarize data so each error only returns one row (return both DBHs and the difference between them)
 dbhDifferenceQC <- function(){
 
   dbhDifferenceFlag <- get_data("Tree")$data$Tree %>%
@@ -232,7 +237,7 @@ treeVitalityQC <- function(){
 #' Return a list of trees with non-valid responses in the lower bole canker columns
 boleCankersILowerQC <- function(){
 
-  boleCakers_I_LowerFlag <- fiveneedlepine:::get_data("Tree")$data$Tree %>%
+  boleCakers_I_LowerFlag <- get_data("Tree")$data$Tree %>%
     dplyr::select(eventID, park, locationID, eventDate, subplot, tag, boleCankers_I_Lower, boleCanks_ITypes_Lower) %>%
     # Filter for entries where lower bole canker infestation checkbox = Yes but infestation type is null
     dplyr::filter((boleCankers_I_Lower == 'Y' & is.na(boleCanks_ITypes_Lower))

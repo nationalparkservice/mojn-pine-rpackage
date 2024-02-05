@@ -4,10 +4,8 @@ library(tidyverse)
 data_dir = "data/final"
 
 # Extract the path of the first Access database in the data folder of the project directory
-database_dir <- common::file.find(here::here("data"), "*.accdb", up = 0)[1]
-
-# The database path can also be input manually
-# database_dir <- "M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb"
+# Or the database path can be input manually
+database_dir <- common::file.find(here::here("data", "MOJN"), "*.accdb", up = 0)[1]
 
 pine <- fiveneedlepine::loadPine(database_dir)
 
@@ -155,10 +153,11 @@ treeFakeData <- treeFakeData %>%
 
 
 
-# TODO: FIX bole and branch canker code, the error might be from the columns not being parsed in correctly
+# # TODO: FIX bole and branch canker code, the error might be from the columns not being parsed in correctly
 #
 # # To fail boleCankersILowerQC: make some of the trees have non-valid entries in the lower bole canker columns
 # treeFakeData <- treeFakeData %>%
+#   dplyr::mutate(boleCanks_ITypes_Lower = as.character(boleCanks_ITypes_Lower)) %>%
 #   dplyr::mutate(
 #     boleCankers_I_Lower = dplyr::case_when(
 #       # Make one entry yes for bole cankers but NA for type
@@ -170,7 +169,7 @@ treeFakeData <- treeFakeData %>%
 #       .default = boleCankers_I_Lower)
 #     ,
 #   boleCanks_ITypes_Lower = dplyr::case_when(
-#     (locationID == "GRBA_N_204" & subplot == 5 & tag == 452) ~ NA,
+#     #(locationID == "GRBA_N_204" & subplot == 5 & tag == 452) ~ NA,
 #     (locationID == "GRBA_N_403" & subplot == 1 & tag == 170) ~ as.character("C"),
 #     (locationID == "GRBA_N_206" & subplot == 1 & tag == 561) ~ as.character("Q"),
 #     .default = boleCanks_ITypes_Lower)
@@ -178,6 +177,7 @@ treeFakeData <- treeFakeData %>%
 #
 # # To fail boleCankersIMiddleQC: make some of the trees have non-valid entries in the middle bole canker columns
 # treeFakeData <- treeFakeData %>%
+#   dplyr::mutate(boleCankers_ITypes_Mid = as.character(boleCankers_ITypes_Mid)) %>%
 #   dplyr::mutate(
 #     boleCankers_I_Mid = dplyr::case_when(
 #       # Make one entry yes for bole cankers but NA for type
@@ -198,6 +198,7 @@ treeFakeData <- treeFakeData %>%
 #
 # # To fail boleCankersIUpperQC: make some of the trees have non-valid entries in the upper bole canker columns
 # treeFakeData <- treeFakeData %>%
+#   dplyr::mutate(boleCankers_ITypes_Upper = as.character(boleCankers_ITypes_Upper)) %>%
 #   dplyr::mutate(
 #     boleCankers_I_Upper = dplyr::case_when(
 #       # Make one entry yes for bole cankers but NA for type
@@ -218,6 +219,7 @@ treeFakeData <- treeFakeData %>%
 #
 # # To fail branchCankersILowerQC: make some of the trees have a non-valid response in the lower branch canker columns
 # treeFakeData <- treeFakeData %>%
+#   dplyr::mutate(branchCanks_ITypes_Lower = as.character(branchCanks_ITypes_Lower)) %>%
 #   dplyr::mutate(
 #     branchCanks_I_Lower = dplyr::case_when(
 #       # Make one entry yes for branch cankers but NA for type
@@ -238,6 +240,7 @@ treeFakeData <- treeFakeData %>%
 #
 # # To fail branchCankersIMiddleQC: make some of the trees have a non-valid response in the middle branch canker columns
 # treeFakeData <- treeFakeData %>%
+#   dplyr::mutate(branchCanks_ITypes_Mid = as.character(branchCanks_ITypes_Mid)) %>%
 #   dplyr::mutate(
 #     branchCanks_I_Mid = dplyr::case_when(
 #       # Make one entry yes for branch cankers but NA for type
@@ -258,6 +261,7 @@ treeFakeData <- treeFakeData %>%
 #
 # # To fail branchCankersIUpperQC: make some of the trees have non-valid entries in the upper branch canker columns
 # treeFakeData <- treeFakeData %>%
+#   dplyr::mutate(branchCanks_ITypes_Upper = as.character(branchCanks_ITypes_Upper)) %>%
 #   dplyr::mutate(
 #     branchCanks_I_Upper = dplyr::case_when(
 #       # Make one entry yes for branch cankers but NA for type

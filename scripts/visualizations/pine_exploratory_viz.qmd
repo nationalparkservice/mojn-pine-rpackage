@@ -21,7 +21,6 @@ library(RColorBrewer)
 library(QCkit)
 library(sp)
 library(raster)
-#library(terra)
 library(tidyverse)
 ```
 
@@ -29,13 +28,13 @@ library(tidyverse)
 #| output: false
 data_dir = here::here("data")
 # TODO: change to relative directory
-pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
+pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary.accdb")
 
  
   
 # Remove seedling plots with no seedlings
 pine$data$Seedling <- pine$data$Seedling %>%
-  filter(speciesCode != "_NONE") %>%
+  filter(scientificName != "_NONE") %>%
   # Make a unique identifier for all seedlings
   mutate(uniqueSeedlingID = paste0(locationID, "_", tag)) 
 
@@ -89,35 +88,16 @@ sitesData <- pine$data$Site %>%
                     zone = "11",
                     datum = "NAD83") %>%
   mutate(decimal_lat = as.numeric(decimalLatitude),
-         decimal_long = as.numeric(decimalLongitude)) %>%
-  # TODO: one site seems to return NA as lat long
-  # Get elevation for each lat long
-  get_elevation('decimalLatitude', 'decimalLongitude', spatial_ref="4326") %>%
-  # Round elevation to two sig figs
-  mutate(roundedElevation = signif(as.numeric(minimumElevationInMeters), 2)) %>%
-  # Divide elevation into 10 groups
-  mutate(elevationGroup = cut(x = as.numeric(minimumElevationInMeters), breaks = 10, labels = FALSE))
+         decimal_long = as.numeric(decimalLongitude)) 
+# %>%
+#   # TODO: one site seems to return NA as lat long
+#   # Get elevation for each lat long
+#   get_elevation('decimalLatitude', 'decimalLongitude', spatial_ref="4326") %>%
+#   # Round elevation to two sig figs
+#   mutate(roundedElevation = signif(as.numeric(minimumElevationInMeters), 2)) %>%
+#   # Divide elevation into 10 groups
+#   mutate(elevationGroup = cut(x = as.numeric(minimumElevationInMeters), breaks = 10, labels = FALSE))
 
-
-# # TODO
-# # Another method to find lat long of sites from utm northing
-# # Selects locationID and UTM info from sites data
-# sitesSplit <- pine$data$Site %>%
-#   # Remove any letters from UTM Zone so it's just the zone number
-#   mutate(UTM_Zone = str_extract(UTM_Zone, "[0-9]*")) %>%
-#   rename(latitude = primaryCornerXCoord) %>%
-#   rename(longitude = primaryCornerYCoord) %>%
-#   dplyr::select(locationID, latitude, longitude, UTM_Zone)
-# 
-# v <- vect(sitesSplit, crs= paste("+proj=utm +zone=11 +datum=NAD83  +units=m"), geom= c("latitude", "longitude"))
-# y <- project(v, "+proj=longlat +datum=WGS84")
-# 
-# lonlat <- geom(y)[, c("x", "y")]
-# #head(lonlat, 3)
-#   
-# 
-# # TODO: see if you can add map() to the above function so you don't have to specify the UTM zone
-# #v2 <- map(sitesSplit, vector(x = ., crs= paste("+proj=utm +zone=11 +datum=NAD83  +units=m"), geom= c("latitude", "longitude")))
 ```
 
 ## Seedling Graphs
@@ -129,7 +109,7 @@ sitesData <- pine$data$Site %>%
 # Seedling species by year
 seedlingSpecs <- pine$data$Seedling %>%
   ggplot(aes(x = factor(year(as_datetime(eventDate))))) + 
-  geom_bar(aes( fill = factor(speciesCode))) +
+  geom_bar(aes( fill = factor(scientificName))) +
   theme_minimal() + 
   labs(title = "Seedling Species",
        x = "Year", y = "Count",
@@ -145,14 +125,14 @@ ggplotly(seedlingSpecs)
 
 ```{r}
 # height of seedling by elevation or latitude
-seedlingHeight <- pine$data$Seedling %>%
-  dplyr::select(locationID, eventDate, speciesCode, heightClass, eventID) %>%
-  dplyr::mutate(heightClass = case_when(
-    heightClass == "ND" ~ NA,
-    .default = heightClass)) %>%
-  full_join(sitesData, by = "locationID") %>%
-  dplyr::select(locationID, heightClass, decimalLatitude, elevationGroup) %>%
-  filter(!is.na(heightClass))
+# seedlingHeight <- pine$data$Seedling %>%
+#   dplyr::select(locationID, eventDate, scientificName, heightClass, eventID) %>%
+#   dplyr::mutate(heightClass = case_when(
+#     heightClass == "ND" ~ NA,
+#     .default = heightClass)) %>%
+#   full_join(sitesData, by = "locationID") %>%
+#   dplyr::select(locationID, heightClass, decimalLatitude, elevationGroup) %>%
+#   filter(!is.na(heightClass))
 
 
 
@@ -197,9 +177,9 @@ ggplotly(seedlingPercentGraph)
 # TODO if a seedling is listed in more than one year it is counted twice
 seedingSiteGraph <- pine$data$Seedling %>%
   full_join(pine$data$Site, by = "locationID") %>%
-  group_by(locationID, speciesCode)  %>%
+  group_by(locationID, scientificName)  %>%
   summarise(count = n()) %>%
-  ggplot(aes(x = factor(locationID), y=count, fill = speciesCode)) +
+  ggplot(aes(x = factor(locationID), y=count, fill = scientificName)) +
   geom_col() + 
   theme_minimal() + 
   labs(title = "Seedling Species by Site",
@@ -223,10 +203,10 @@ ggplotly(seedingSiteGraph)
 # TODO: could change it from UTM Northing to elevation
 # Data wrangling to create percent of species for each UTM Northing
 tree_pct <- pine$data$Tree %>%
-  dplyr::select(locationID, eventID, speciesCode) %>%
+  dplyr::select(locationID, eventID, scientificName) %>%
   full_join(pine$data$Site, by = "locationID") %>%
-  dplyr::select(locationID, eventID, speciesCode, primaryCornerYCoord) %>%
-  group_by(primaryCornerYCoord, speciesCode) %>%
+  dplyr::select(locationID, eventID, scientificName, primaryCornerYCoord) %>%
+  group_by(primaryCornerYCoord, scientificName) %>%
   summarize(speciesCount = n()) %>%
   group_by(primaryCornerYCoord) %>%
   mutate(percent = speciesCount/sum(speciesCount)*100)
@@ -234,7 +214,7 @@ tree_pct <- pine$data$Tree %>%
 # Graph of Tree Species by UTM Northing
 tree_pct_plot <- tree_pct %>%
   ggplot(aes(x = factor(primaryCornerYCoord))) +
-  geom_bar(aes(y = percent, fill = factor(speciesCode)), stat = "identity", postion = "stack") + 
+  geom_bar(aes(y = percent, fill = factor(scientificName)), stat = "identity", postion = "stack") + 
   theme_minimal() + 
   labs(title = "Tree Species by UTM Northing",
        x = "UTM Northing", y = "Percent",
@@ -251,10 +231,10 @@ ggplotly(tree_pct_plot)
 # Graph of tree count by elevation group
 # TODO: chnage from elevation group to community
 treeElevation2Graph <- pine$data$Tree %>%
-  dplyr::select(locationID, eventID, speciesCode) %>%
+  dplyr::select(locationID, eventID, scientificName) %>%
   # Join with sites table to get lat long
   full_join(sitesData, by = "locationID") %>%
-  ggplot(aes(x = factor(sampleFrame), fill = as.factor(speciesCode))) +
+  ggplot(aes(x = factor(sampleFrame), fill = as.factor(scientificName))) +
   geom_bar(stat = "count") + 
   theme_minimal() + 
   labs(title = "Tree Count",
@@ -398,7 +378,7 @@ heightBySpeciesGraph <- pine$data$Tree %>%
     (treeHeight_m == -999 | treeHeight_m == 999) ~ NA,
     .default = treeHeight_m)) %>%
   filter(!is.na(treeHeight_m)) %>%
-  ggplot(aes(x = speciesCode, y = treeHeight_m, fill = speciesCode)) +
+  ggplot(aes(x = scientificName, y = treeHeight_m, fill = scientificName)) +
   geom_boxplot() + 
   theme_minimal() + 
   labs(title = "Tree Height",
@@ -416,7 +396,7 @@ ggplotly(heightBySpeciesGraph)
 # # Recently dead species by year
 # speciesDeadGraph <- pine$data$Tree %>%
 #   filter(vitality == "Recently Dead") %>%
-#   ggplot(aes(x = factor(year(as_date(eventDate))), fill = speciesCode)) +
+#   ggplot(aes(x = factor(year(as_date(eventDate))), fill = scientificName)) +
 #   geom_bar() + 
 #   # TODO: delete empty columns
 #   facet_wrap(~panel, scales="free_x") + 
