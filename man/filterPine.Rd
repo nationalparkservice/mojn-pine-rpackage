@@ -44,9 +44,6 @@ filterPine(
 
 \item{silent}{Suppress informational messages?}
 }
-\value{
-
-}
 \description{
 Use \code{\link[=validFilters]{validFilters()}} to see list of valid values for filter arguments.
 }
