@@ -1,7 +1,7 @@
 # Load test data
 loadPine(data_path = test_path("testData"), dictionary_dir = test_path("testData", "dictionary"))
 
-# Declare Tree column names as global variables to reduce warning in R CMD Check
+# # Declare Tree column names as global variables to reduce warning in R CMD Check
 globalVariables(colnames(loadPine(data_path = test_path("testData"), dictionary_dir = test_path("testData", "dictionary"))$data$Tree))
 
 test_that("Test that treeDuplicateTagQC() works", {
@@ -186,6 +186,9 @@ test_that("Test that recentlyDeadTreeQC() works", {
 # The fake data has not been modified to fail the tests below
 
 test_that("Test that boleCankersILowerQC() works", {
+  # # Compare number of rows returned
+  # actual_rows <- nrow(boleCankersILowerQC())
+  # expect_equal(actual_rows, 3)
 
   # Compare expected and actual column names
   actual_cols <- colnames(boleCankersILowerQC())
@@ -199,6 +202,9 @@ test_that("Test that boleCankersILowerQC() works", {
 
 
 test_that("Test that boleCankersIMiddleQC() works", {
+  # # Compare number of rows returned
+  # actual_rows <- nrow(boleCankersIMiddleQC())
+  # expect_equal(actual_rows, 3)
 
   # Compare expected and actual column names
   actual_cols <- colnames(boleCankersIMiddleQC())
@@ -212,6 +218,9 @@ test_that("Test that boleCankersIMiddleQC() works", {
 
 
 test_that("Test that boleCankersIUpperQC() works", {
+  # # Compare number of rows returned
+  # actual_rows <- nrow(boleCankersIUpperQC())
+  # expect_equal(actual_rows, 3)
 
   # Compare expected and actual column names
   actual_cols <- colnames(boleCankersIUpperQC())
@@ -225,6 +234,9 @@ test_that("Test that boleCankersIUpperQC() works", {
 
 
 test_that("Test that branchCankersILowerQC() works", {
+  # # Compare number of rows returned
+  # actual_rows <- nrow(branchCankersILowerQC())
+  # expect_equal(actual_rows, 3)
 
   # Compare expected and actual column names
   actual_cols <- colnames(branchCankersILowerQC())
@@ -238,6 +250,9 @@ test_that("Test that branchCankersILowerQC() works", {
 
 
 test_that("Test that branchCankersIMiddleQC() works", {
+  # # Compare number of rows returned
+  # actual_rows <- nrow(branchCankersIMiddleQC())
+  # expect_equal(actual_rows, 3)
 
   # Compare expected and actual column names
   actual_cols <- colnames(branchCankersIMiddleQC())
@@ -251,6 +266,9 @@ test_that("Test that branchCankersIMiddleQC() works", {
 
 
 test_that("Test that branchCankersIUpperQC() works", {
+  # # Compare number of rows returned
+  # actual_rows <- nrow(branchCankersIUpperQC())
+  # expect_equal(actual_rows, 3)
 
   # Compare expected and actual column names
   actual_cols <- colnames(branchCankersIUpperQC())

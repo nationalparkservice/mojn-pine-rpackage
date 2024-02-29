@@ -35,33 +35,19 @@ library(tidyverse)
 ```{r}
 #| output: false
 
+# Import Data
+
 data_dir = "data"
-# TODO: change to relative directory
 
-# MOJN
-#pine <- fiveneedlepine::loadPine("C:/Users/ifoster/Documents/R/mojn-pine-rpackage/data/FNP_MOJN_Primary_Copy.accdb")
-#pine <- fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
+# Extract the path of the first Access database in the data folder folder of the project directory
+# Or the database path can be input manually
+database_dir <- common::file.find(here::here("data"), "*.accdb", up = 0)[1]
 
-# UCBN
-pine <- fiveneedlepine::loadPine("M:/STAFF/FosterI/UCBNPineData/UCBN_LimberPine_BackEnd_Intermediate_QAQC_2023_Copy.accdb")
+pine <- fiveneedlepine::loadPine(database_dir)
 
-# KLMN
-#pine <- fiveneedlepine::loadPine("C:\\Users\\ifoster\\Documents\\R\\mojn-pine-rpackage\\data\\KLMN_PineData\\KLMN_WBP_Master_2012_2023_20231221_PII_Copy.accdb")
-#source("cleaningData.R")
 source("../../R/calculations.R")
 pine <- fiveneedlepine:::cleaningPine(pine)
 ```
-
-```{r}
-# Filter for just UCBN Data
-# pine$data$Seedling <- pine$data$Seedling %>% filter(network == 'UCBN')
-# pine$data$Site <- pine$data$Site %>% filter(network == 'UCBN')
-# pine$data$Tree <- pine$data$Tree %>% filter(network == 'UCBN')
-# pine$data$Visit <- pine$data$Visit %>% filter(network == 'UCBN')
-# pine$data$LiveTrees <- pine$data$LiveTrees %>% filter(network == 'UCBN')
-# pine$data$DeadTrees <- pine$data$DeadTrees %>% filter(network == 'UCBN')
-```
-
 
 ## Map
 

@@ -11,40 +11,17 @@ execute:
 ```{r, message=FALSE, echo=FALSE, include=FALSE}
 library(tidyverse)
 library(fiveneedlepine)
-data_dir = "data/final"
-#fiveneedlepine::loadPine("M:/MONITORING/Pine/Data/Database/Backend/FNP_MOJN_Primary.accdb")
 
-fiveneedlepine::loadPine("M:/STAFF/FosterI/UCBNPineData/UCBN_LimberPine_BackEnd_Intermediate_QAQC_2023_Copy.accdb")
+# Import Data
 
-#fiveneedlepine::loadPine("C:\\Users\\ifoster\\Documents\\R\\mojn-pine-rpackage\\data\\KLMN_PineData\\KLMN_WBP_Master_2012_2023_20231221_PII_Copy.accdb")
+data_dir = "data"
+
+# Extract the path of the first Access database in the data folder folder of the project directory
+# Or the database path can be input manually
+database_dir <- common::file.find(here::here("data"), "*.accdb", up = 0)[1]
+
+fiveneedlepine::loadPine(database_dir)
 ```
-
-```{r}
-# Filter for just UCBN Data
-# seedling <- pine$data$Seedling %>% filter(network == 'UCBN')
-# site <- pine$data$Site %>% filter(network == 'UCBN')
-# tree <- pine$data$Tree %>% filter(network == 'UCBN')
-# visit <- pine$data$Visit %>% filter(network == 'UCBN')
-```
-
-```{r}
-# 
-# # Run writePine() to save dictionaries to testData folder
-# fiveneedlepine::writePine(data_dir = "C:\\Users\\ifoster\\Documents\\R\\mojn-pine-rpackage\\data\\UCBN", dictionary_dir = "C:\\Users\\ifoster\\Documents\\R\\mojn-pine-rpackage\\data\\UCBN/dictionary")
-# 
-# # Save fake data to testData folder
-# readr::write_csv(visit, file = paste0("C:\\Users\\ifoster\\Documents\\R\\mojn-pine-rpackage\\data\\UCBN", "/Visit.csv"))
-# readr::write_csv(seedling, file = paste0("C:\\Users\\ifoster\\Documents\\R\\mojn-pine-rpackage\\data\\UCBN", "/Seedling.csv"))
-# readr::write_csv(tree, file = paste0("C:\\Users\\ifoster\\Documents\\R\\mojn-pine-rpackage\\data\\UCBN", "/Tree.csv"))
-# readr::write_csv(site, file = paste0("C:\\Users\\ifoster\\Documents\\R\\mojn-pine-rpackage\\data\\UCBN", "/Site.csv"))
-```
-
-
-```{r}
-# Read in only UCBN data
-#fiveneedlepine::loadPine("C:\\Users\\ifoster\\Documents\\R\\mojn-pine-rpackage\\data\\UCBN")
-```
-
 
 # Event QC
 
