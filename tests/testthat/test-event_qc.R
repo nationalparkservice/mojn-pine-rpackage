@@ -1,8 +1,8 @@
 # Load test data
 loadPine(data_path = test_path("testData"), dictionary_dir = test_path("testData", "dictionary"))
 
-# Declare Visit column names as global variables to reduce warning in R CMD Check
-globalVariables(colnames(loadPine(data_path = test_path("testData"), dictionary_dir = test_path("testData", "dictionary"))$data$Visit))
+# # Declare Visit column names as global variables to reduce warning in R CMD Check
+# globalVariables(colnames(loadPine(data_path = test_path("testData"), dictionary_dir = test_path("testData", "dictionary"))$data$Visit))
 
 
 test_that("Test that noSeedlingDataQC() works", {
