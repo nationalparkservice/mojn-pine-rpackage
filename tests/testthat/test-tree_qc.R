@@ -24,7 +24,7 @@ test_that("Test that treeDuplicateTagQC() works", {
 
 test_that("Test that treeMissingTagQC() works", {
   # Compare number of rows returned
-  actual_rows <- nrow(treeDuplicateTagQC())
+  actual_rows <- nrow(treeMissingTagQC())
   expect_equal(actual_rows, 2)
 
   # Compare expected and actual column names
@@ -42,7 +42,7 @@ test_that("Test that treeMissingTagQC() works", {
 
 test_that("Test that stemLetterQC() works", {
   # Compare number of rows returned
-  actual_rows <- nrow(treeDuplicateTagQC())
+  actual_rows <- nrow(stemLetterQC())
   expect_equal(actual_rows, 2)
 
   # Compare expected and actual column names
@@ -58,7 +58,7 @@ test_that("Test that stemLetterQC() works", {
 
 test_that("Test that treeCauseOfDeathQC() works", {
   # Compare number of rows returned
-  actual_rows <- nrow(treeDuplicateTagQC())
+  actual_rows <- nrow(treeCauseOfDeathQC())
   expect_equal(actual_rows, 2)
 
   # Compare expected and actual column names
