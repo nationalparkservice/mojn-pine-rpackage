@@ -139,6 +139,11 @@ loadPine <- function(data_path, dictionary_dir = data_path, dictionary_filenames
     stop("data_path and/or metadata_path are invalid")
   }
 
+  # Add lat/long columns to Site table
+  all_tables$data$Site %<>%
+    dplyr::group_by(UTM_Zone, geodecticDatum) %>%
+    dplyr::mutate()
+
   # Load data and metadata into package environment
   lapply(names(all_tables$data), function(table_name) { assign(table_name, all_tables$data[[table_name]], envir = pkg_globals) })
   lapply(names(all_tables$metadata), function(table_name) { assign(table_name, all_tables$metadata[[table_name]], envir = pkg_globals) })
