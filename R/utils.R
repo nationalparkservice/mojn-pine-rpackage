@@ -208,7 +208,7 @@ validFilters <- function() {
 #' @param protected_status Character vector of protected status(es)
 #' @param data_processing_level Character vector of data processing level(s)
 #'
-#' @return
+#' @return A data frame or list of data frames
 #' @export
 #'
 filterPine <- function(data_name = "all", network, park, sample_frame, panel, site_code, visit_year, flag, protected_status, data_processing_level, case_sensitive = FALSE, silent = FALSE) {

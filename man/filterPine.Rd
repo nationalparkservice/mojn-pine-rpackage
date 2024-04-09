@@ -44,6 +44,9 @@ filterPine(
 
 \item{silent}{Suppress informational messages?}
 }
+\value{
+A data frame or list of data frames
+}
 \description{
 Use \code{\link[=validFilters]{validFilters()}} to see list of valid values for filter arguments.
 }
