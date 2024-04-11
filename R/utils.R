@@ -92,7 +92,7 @@ validMetadataTables <- function() {
 #' # Load from Access db
 #' LoadPine("M:/Monitoring/Pine/DataExports/FNP_BackEnd.accdb")
 #' }
-loadPine <- function(data_path, dictionary_dir = data_dir, dictionary_filenames = c(tables = "data_dictionary_tables.txt",
+loadPine <- function(data_path, dictionary_dir = paste0(data_path, "/dictionary"), dictionary_filenames = c(tables = "data_dictionary_tables.txt",
                                                                                     attributes = "data_dictionary_attributes.txt",
                                                                                     categories = "data_dictionary_categories.txt")) {
   # Normalize paths
@@ -140,6 +140,7 @@ loadPine <- function(data_path, dictionary_dir = data_dir, dictionary_filenames 
   assign("data_tables", names(all_tables$data), envir = pkg_globals)
 
   invisible(all_tables)
+
 }
 
 
@@ -156,7 +157,7 @@ writePine <- function(data_dir = here::here("data", "final"), dictionary_dir = h
                                                categories = "data_dictionary_categories.txt"),
                       verbose = FALSE, ...)
 {
-  fetchaccess::writeToFiles(all_tables = filterPine(...), data_dir = data_dir, dictionary_dir = dictionary_dir, lookup_dir = NA, metadata_filenames = metadata_filenames, verbose = verbose)
+  fetchaccess::writeToFiles(all_tables = filterPine(...), data_dir = data_dir, dictionary_dir = dictionary_dir, lookup_dir = NA, verbose = verbose)
 }
 
 #' List valid values for filtering data
@@ -197,7 +198,7 @@ validFilters <- function() {
 #' @param protected_status Character vector of protected status(es)
 #' @param data_processing_level Character vector of data processing level(s)
 #'
-#' @return
+#' @returns
 #' @export
 #'
 filterPine <- function(data_name = "all", network, park, sample_frame, panel, site_code, visit_year, flag, protected_status, data_processing_level, case_sensitive = FALSE, silent = FALSE) {
@@ -301,4 +302,93 @@ filterOne <- function(data, data_name, filter_cols, case_sensitive, silent) {
   }
 
   return(data)
+}
+
+#' Write results of QC functions to an Excel file
+#'
+#' @param outputFileName Name of the output Excel file
+writeQCToExcel <- function(outputFileName = "pine_qc.xlsx") {
+
+  qcResults <- list()
+
+  # Call all QC functions
+  qcResults$noSeedlingDataQC <- fiveneedlepine:::noSeedlingDataQC()
+  qcResults$noTreeDataQC <- fiveneedlepine:::noTreeDataQC()
+
+  qcResults$numberOfSubplotsQC <- fiveneedlepine:::numberOfSubplotsQC()
+  qcResults$subplotQC <- fiveneedlepine:::subplotQC()
+  qcResults$missingTagQC <- fiveneedlepine:::missingTagQC()
+  qcResults$duplicateSeedlingTagQC <- fiveneedlepine:::duplicateSeedlingTagQC()
+  qcResults$causeOfDeathQC <- fiveneedlepine:::causeOfDeathQC()
+  qcResults$vitalityQC <- fiveneedlepine:::vitalityQC()
+  qcResults$seedlingSpeciesQC <- fiveneedlepine:::seedlingSpeciesQC()
+  qcResults$heightClassQC <- fiveneedlepine:::heightClassQC()
+  qcResults$recentlyDeadSeedlingQC <- fiveneedlepine:::recentlyDeadSeedlingQC()
+
+  qcResults$treeDuplicateTagQC <- fiveneedlepine:::treeDuplicateTagQC()
+  qcResults$treeMissingTagQC <- fiveneedlepine:::treeMissingTagQC()
+  qcResults$stemLetterQC <- fiveneedlepine:::stemLetterQC()
+  qcResults$treeCauseOfDeathQC <- fiveneedlepine:::treeCauseOfDeathQC()
+  qcResults$treeHeightQC <- fiveneedlepine:::treeHeightQC()
+  qcResults$dbhQC <- fiveneedlepine:::dbhQC()
+  qcResults$mortalityYearQC <- fiveneedlepine:::mortalityYearQC()
+  qcResults$coneCountQC <- fiveneedlepine:::coneCountQC()
+  qcResults$crownHealthQC <- fiveneedlepine:::crownHealthQC()
+  qcResults$crownKillLowerQC <- fiveneedlepine:::crownKillLowerQC()
+  qcResults$crownKillMiddleQC <- fiveneedlepine:::crownKillMiddleQC()
+  qcResults$crownKillUpperQC <- fiveneedlepine:::crownKillUpperQC()
+  qcResults$treeSubplotQC <- fiveneedlepine:::treeSubplotQC()
+  qcResults$treeVitalityQC <- fiveneedlepine:::treeVitalityQC()
+  qcResults$boleCankersILowerQC <- fiveneedlepine:::boleCankersILowerQC()
+  qcResults$boleCankersIMiddleQC <- fiveneedlepine:::boleCankersIMiddleQC()
+  qcResults$boleCankersIUpperQC <- fiveneedlepine:::boleCankersIUpperQC()
+  qcResults$branchCankersILowerQC <- fiveneedlepine:::branchCankersILowerQC()
+  qcResults$branchCankersIMiddleQC <- fiveneedlepine:::branchCankersIMiddleQC()
+  qcResults$branchCankersIUpperQC <- fiveneedlepine:::branchCankersIUpperQC()
+  qcResults$treeSpeciesQC <- fiveneedlepine:::treeSpeciesQC()
+  qcResults$recentlyDeadTreeQC <- fiveneedlepine:::recentlyDeadTreeQC()
+
+  results <- openxlsx::createWorkbook("pineQC")
+
+  # lapply(qcResults, function(table){
+  #   print(table)
+  #   print(nrow(table))
+  #   print(paste0(table))
+  #   if(nrow(table) > 0){
+  #     openxlsx::addWorksheet(results, paste0('"', .x, '"'))
+  #   }
+  #   # if()
+  #   # print(qcResults[[table]])
+  #   })
+
+  for(i in 1:length(qcResults)) {
+    print(qcResults[i])
+    print(nrow(qcResults[[i]]))
+    if(nrow(qcResults[[i]]) > 0){
+      openxlsx::addWorksheet(results, names(qcResults)[i])
+      openxlsx::writeDataTable(results, names(qcResults)[i], as.data.frame(qcResults[i]))
+    }
+  }
+
+  saveWorkbook(results, outputFileName, overwrite = TRUE)
+
+  # # Add results to workbook
+  #
+  # wb <- createWorkbook("WBP_Validation")
+  # addWorksheet(wb, "qcResults$noSeedlingDataQC")
+  # writeData(wb, "EventsList", Events, rowNames = FALSE)
+  # saveWorkbook(wb, OutputFilename, overwrite = TRUE)
+  # TableDefs[nrow(TableDefs) + 1,] = list("EventsList","All events - review for accuracy and no duplicates")
+  #
+  # TestSeedlingDataDeathCause<- if(nrow(SeedlingDataDeathCause)>0) {
+  #   addWorksheet(wb, "SeedlingDataDeathCause")
+  #   writeData(wb, "SeedlingDataDeathCause", SeedlingDataDeathCause, rowNames = FALSE)
+  #   saveWorkbook(wb, OutputFilename, overwrite = TRUE)
+  #   TableDefs[nrow(TableDefs) + 1,] = list("SeedlingDataDeathCause","Seedling records that are recorded as Dead but don't have a Death Cause")
+  # }
+  #
+  # #### write TAbleDefs back to the Excel sheet
+  # addWorksheet(wb, "TableDefs")
+  # writeData(wb, "TableDefs", TableDefs, rowNames = FALSE)
+  # saveWorkbook(wb, OutputFilename, overwrite = TRUE)
 }

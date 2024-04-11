@@ -1,7 +1,6 @@
 
 #' Some basic cleaning of the pine data to be able to graph it
 #' @param pine the data to input into the function (entire pine dataset)
-#' TODO:  do i still have to include getting rid of pulled trees and seedlings if they were removed from the database
 cleaningPine <- function(pine){
   # Calculate the visit number for each visit to a site
   visitNum <- pine$data$Visit %>%
@@ -77,14 +76,14 @@ cleaningPine <- function(pine){
     # Remove rows where DBH is NA so calculations can be performed
     dplyr::filter(!is.na(treeDBH_cm) & treeDBH_cm != -999 & treeDBH_cm != 999)
 
-  # Live Tree Data Wrangling
+  # Create table with only live trees
   pine$data$LiveTrees <- pine$data$Tree %>%
     # Remove all dead trees
     dplyr::filter(vitality == "Live") %>%
     # Remove rows where height is NA so calculations can be performed
     dplyr::filter(!is.na(treeHeight_m) & treeHeight_m != -999 & treeHeight_m != 999)
 
-  # Dead Tree Data Wrangling
+  # Create table with only dead or recently dead trees
   pine$data$DeadTrees <- pine$data$Tree %>%
     dplyr::filter(vitality == "Dead" | vitality == "Recently Dead")
 
