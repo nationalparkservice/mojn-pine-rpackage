@@ -7,8 +7,7 @@
 cleaningPine(pine)
 }
 \arguments{
-\item{pine}{the data to input into the function (entire pine dataset)
-TODO:  do i still have to include getting rid of pulled trees and seedlings if they were removed from the database}
+\item{pine}{the data to input into the function (entire pine dataset)}
 }
 \description{
 Some basic cleaning of the pine data to be able to graph it
