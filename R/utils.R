@@ -92,7 +92,7 @@ validMetadataTables <- function() {
 #' # Load from Access db
 #' LoadPine("M:/Monitoring/Pine/DataExports/FNP_BackEnd.accdb")
 #' }
-loadPine <- function(data_path, dictionary_dir = paste0(data_path, "/dictionary"), dictionary_filenames = c(tables = "data_dictionary_tables.txt",
+loadPine <- function(data_path, dictionary_dir = here::here(data_path, "dictionary"), dictionary_filenames = c(tables = "data_dictionary_tables.txt",
                                                                                     attributes = "data_dictionary_attributes.txt",
                                                                                     categories = "data_dictionary_categories.txt")) {
   # Normalize paths
@@ -140,9 +140,33 @@ loadPine <- function(data_path, dictionary_dir = paste0(data_path, "/dictionary"
   }
 
   # Add lat/long columns to Site table
-  all_tables$data$Site %<>%
-    dplyr::group_by(UTM_Zone, geodecticDatum) %>%
-    dplyr::mutate()
+  if (!(all(c("decimalLatitude", "decimalLongitude", "LatLong_CRS") %in% names(all_tables$data$Site)))) {
+    all_tables$data$Site %<>%
+      QCkit::generate_ll_from_utm(EastingCol = primaryCornerXCoord,
+                                  NorthingCol = primaryCornerYCoord,
+                                  ZoneCol = UTM_Zone,
+                                  DatumCol = geodecticDatum,
+                                  latlong_datum = "NAD83")
+    lat_long_metadata <- tibble::tibble(tableName = "Site",
+                                        attributeName = c("decimalLatitude", "decimalLongitude", "LatLong_CRS"),
+                                        attributeDefinition = c("Latitude (converted from UTM coordinates)",
+                                                                "Longitude (converted from UTM coordinates)",
+                                                                "Coordinate reference system of lat/long coordinates"),
+                                        class = c("numeric", "numeric", "character"),
+                                        unit = c("degree", "degree", NA),
+                                        dateTimeFormatString = NA,
+                                        missingValueCode = NA,
+                                        missingValueCodeExplanation = NA,
+                                        lookup = NA,
+                                        rClass = c("numeric", "numeric", "character"))
+
+    # Insert lat long metadata into correct spot in metadata fields table
+    site_rows <- as.numeric(rownames(all_tables$metadata$fields)[all_tables$metadata$fields$tableName == "Site"])  # get row numbers for site table metadata
+    insert_loc <- max(site_rows)  # row after which to insert lat/long field metadata
+    chunk_before <- all_tables$metadata$fields[1:insert_loc,]
+    chunk_after <- all_tables$metadata$fields[(insert_loc + 1):nrow(all_tables$metadata$fields),]
+    all_tables$metadata$fields <- rbind(chunk_before, lat_long_metadata, chunk_after)
+  }
 
   # Load data and metadata into package environment
   lapply(names(all_tables$data), function(table_name) { assign(table_name, all_tables$data[[table_name]], envir = pkg_globals) })
@@ -162,17 +186,13 @@ loadPine <- function(data_path, dictionary_dir = paste0(data_path, "/dictionary"
 #'
 #' @export
 #'
-writePine <- function(data_dir = here::here("data"), dictionary_dir = data_dir,
+writePine <- function(data_dir = here::here("data"), dictionary_dir = here::here(data_path, "dictionary"),
                       dictionary_filenames = c(tables = "data_dictionary_tables.txt",
                                                attributes = "data_dictionary_attributes.txt",
                                                categories = "data_dictionary_categories.txt"),
                       verbose = FALSE, ...)
 {
-<<<<<<< HEAD
   fetchaccess::writeToFiles(all_tables = filterPine(...), data_dir = data_dir, dictionary_dir = dictionary_dir, lookup_dir = NA, dictionary_filenames = dictionary_filenames, verbose = verbose)
-=======
-  fetchaccess::writeToFiles(all_tables = filterPine(...), data_dir = data_dir, dictionary_dir = dictionary_dir, lookup_dir = NA, verbose = verbose)
->>>>>>> if-dev2
 }
 
 #' List valid values for filtering data
@@ -213,11 +233,7 @@ validFilters <- function() {
 #' @param protected_status Character vector of protected status(es)
 #' @param data_processing_level Character vector of data processing level(s)
 #'
-<<<<<<< HEAD
 #' @return A data frame or list of data frames
-=======
-#' @returns
->>>>>>> if-dev2
 #' @export
 #'
 filterPine <- function(data_name = "all", network, park, sample_frame, panel, site_code, visit_year, flag, protected_status, data_processing_level, case_sensitive = FALSE, silent = FALSE) {

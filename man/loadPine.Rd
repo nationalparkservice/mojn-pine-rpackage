@@ -6,7 +6,7 @@
 \usage{
 loadPine(
   data_path,
-  dictionary_dir = data_path,
+  dictionary_dir = here::here(data_path, "dictionary"),
   dictionary_filenames = c(tables = "data_dictionary_tables.txt", attributes =
     "data_dictionary_attributes.txt", categories = "data_dictionary_categories.txt")
 )
