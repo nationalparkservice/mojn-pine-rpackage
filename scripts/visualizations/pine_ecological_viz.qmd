@@ -52,19 +52,6 @@ pine <- fiveneedlepine:::cleaningPine(pine)
 ## Map
 
 ```{r}
-#| output: false
-
-# Data wrangling to find lat and long
-pine$data$Site <- pine$data$Site %>%
-  QCkit::convert_utm_to_ll(EastingCol = "primaryCornerXCoord",
-                    NorthingCol = "primaryCornerYCoord",
-                    zone = "11",
-                    datum = "NAD83") %>%
-  mutate(decimalLatitude = as.numeric(decimalLatitude),
-         decimalLongitude = as.numeric(decimalLongitude))
-```
-
-```{r}
 map <- leaflet() %>%
   addTiles() %>%
   setView(-114.25, 38.88, zoom = 5.4) %>%
