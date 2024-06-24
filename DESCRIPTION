@@ -1,8 +1,9 @@
 Package: fiveneedlepine
 Title: Five Needle Pine Data Tools
 Version: 0.0.0.9000
-Authors@R: 
-    person("Sarah", "Wright", , "sarah_wright@nps.gov", role = c("aut", "cre"))
+Authors@R: c(person("Sarah", "Wright", email = "sarah_wright@nps.gov", role=c("aut","cre"), comment = c(ORCID = "0009-0004-5060-2189")), 
+           person("Irene", "Foster", email = "irene_foster@partner.nps.gov", role=c("aut"), ,
+           comment = c(ORCID = "0000-0001-9681-4786")))
 Description: Performs QC, analysis, and visualization for data collected through the Five Needle Pine Monitoring Protocol.
 License: CC0
 Encoding: UTF-8
