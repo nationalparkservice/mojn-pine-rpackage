@@ -15,7 +15,7 @@ devtools::install_github(repo = "nationalparkservice/mojn-pine-rpackage")
 ```
 
 ### Metadata
-Before running any of the functions in the package you should check that the data in you pine Access database is filled out and up to date. Instructions for filling out Access metadata can be found [here](https://github.com/wright13/imd-fetchaccess-package).  
+Before running any of the functions in the package you should check that the data in your pine Access database is filled out and up to date. Instructions for filling out Access metadata can be found [here](https://github.com/wright13/imd-fetchaccess-package).  
 
 ### Functions
 A short summary of the most important functions in this package. For more information see function documentation.

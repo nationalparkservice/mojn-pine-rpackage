@@ -1,5 +1,12 @@
 #' @importFrom magrittr %>% %<>%
 
+utils::globalVariables(c("DBHGroup", "UTM_Zone", "attributeName", "basalArea", "count", "countTotal", "data_path",
+                         "density", "dominance", "geodecticDatum", "heightClass", "numSubplots",
+                         "numberOfPlots", "percentChange", "plotDensity", "primaryCornerXCoord",
+                         "primaryCornerYCoord", "repeatSample", "threeStandardDeviations",
+                         "totalDominance", "totalFrequency", "totalPlots", "uniqueID", "uniqueSeedlingID",
+                         "uniqueSubPlotNum", "uniqueTreeID", "visitNumber", "year"))
+
 # Create package environment to load data into
 pkg_globals <- new.env(parent = emptyenv())
 
@@ -405,7 +412,7 @@ writeQCToExcel <- function(outputFileName = "pine_qc.xlsx") {
     }
   }
 
-  saveWorkbook(results, outputFileName, overwrite = TRUE)
+  openxlsx::saveWorkbook(results, outputFileName, overwrite = TRUE)
 
   # # Add results to workbook
   #
