@@ -1,5 +1,12 @@
 #' @importFrom magrittr %>% %<>%
 
+utils::globalVariables(c("DBHGroup", "UTM_Zone", "attributeName", "basalArea", "count", "countTotal", "data_path",
+                         "density", "dominance", "geodecticDatum", "heightClass", "numSubplots",
+                         "numberOfPlots", "percentChange", "plotDensity", "primaryCornerXCoord",
+                         "primaryCornerYCoord", "repeatSample", "threeStandardDeviations",
+                         "totalDominance", "totalFrequency", "totalPlots", "uniqueID", "uniqueSeedlingID",
+                         "uniqueSubPlotNum", "uniqueTreeID", "visitNumber", "year"))
+
 # Create package environment to load data into
 pkg_globals <- new.env(parent = emptyenv())
 
@@ -92,7 +99,7 @@ validMetadataTables <- function() {
 #' # Load from Access db
 #' LoadPine("M:/Monitoring/Pine/DataExports/FNP_BackEnd.accdb")
 #' }
-loadPine <- function(data_path, dictionary_dir = data_dir, dictionary_filenames = c(tables = "data_dictionary_tables.txt",
+loadPine <- function(data_path, dictionary_dir = here::here(data_path, "dictionary"), dictionary_filenames = c(tables = "data_dictionary_tables.txt",
                                                                                     attributes = "data_dictionary_attributes.txt",
                                                                                     categories = "data_dictionary_categories.txt")) {
   # Normalize paths
@@ -108,19 +115,25 @@ loadPine <- function(data_path, dictionary_dir = data_dir, dictionary_filenames 
     all_tables <- fetchaccess::fetchFromAccess(data_path, data_prefix = "qExport_", lookup_prefix = c("tlu_", "tlu"), lookup_regex = "(^tlu_.*)|(^tbl_Sites$)", as.is = FALSE, add_r_classes = TRUE)
     all_tables <- list(data = all_tables$data,
                        metadata = all_tables$metadata)
+
   } else if (is_csv) {
     ## Option 2: Read data from CSV
     # Load data dictionary
-    dict_tables <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["tables"]), col_types = "c", show_col_types = FALSE)
-    dict_attributes <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["attributes"]), col_types = "c", show_col_types = FALSE)
-    dict_categories <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["categories"]), col_types = "c", show_col_types = FALSE)
+    dict_tables <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["tables"]), show_col_types = FALSE) %>%
+      dplyr::mutate(dplyr::across(dplyr::where(~ !is.character(.x)), as.character))  # Make all metadata columns character
+    dict_attributes <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["attributes"]), show_col_types = FALSE) %>%
+      dplyr::mutate(dplyr::across(dplyr::where(~ !is.character(.x)), as.character))  # Make all metadata columns character
+    dict_categories <- readr::read_tsv(file.path(dictionary_dir, dictionary_filenames["categories"]), show_col_types = FALSE) %>%
+      dplyr::mutate(dplyr::across(dplyr::where(~ !is.character(.x)), as.character))  # Make all metadata columns character
 
     # Create column type spec
     col_spec <- fetchaccess::makeColSpec(dict_attributes)
 
+
     # Read from CSV
     data <- mapply(function(table_name, file_name) {
-      df <- readr::read_csv(file.path(data_path, file_name), col_types = col_spec[[table_name]])
+      df <- readr::read_csv(file.path(data_path, file_name), col_types = col_spec[[table_name]], na = "") %>%
+        tibble::as_tibble()  # convert to tibble to get rid of extra attributes that read_csv adds so that there is no difference b/w reading from access vs csv
     }, dict_tables$tableName, dict_tables$fileName)
 
     names(data) <- dict_tables$tableName
@@ -133,6 +146,35 @@ loadPine <- function(data_path, dictionary_dir = data_dir, dictionary_filenames 
     stop("data_path and/or metadata_path are invalid")
   }
 
+  # Add lat/long columns to Site table
+  if (!(all(c("decimalLatitude", "decimalLongitude", "LatLong_CRS") %in% names(all_tables$data$Site)))) {
+    all_tables$data$Site %<>%
+      QCkit::generate_ll_from_utm(EastingCol = primaryCornerXCoord,
+                                  NorthingCol = primaryCornerYCoord,
+                                  ZoneCol = UTM_Zone,
+                                  DatumCol = geodecticDatum,
+                                  latlong_datum = "NAD83")
+    lat_long_metadata <- tibble::tibble(tableName = "Site",
+                                        attributeName = c("decimalLatitude", "decimalLongitude", "LatLong_CRS"),
+                                        attributeDefinition = c("Latitude (converted from UTM coordinates)",
+                                                                "Longitude (converted from UTM coordinates)",
+                                                                "Coordinate reference system of lat/long coordinates"),
+                                        class = c("numeric", "numeric", "character"),
+                                        unit = c("degree", "degree", NA),
+                                        dateTimeFormatString = NA,
+                                        missingValueCode = NA,
+                                        missingValueCodeExplanation = NA,
+                                        lookup = NA,
+                                        rClass = c("numeric", "numeric", "character"))
+
+    # Insert lat long metadata into correct spot in metadata fields table
+    site_rows <- as.numeric(rownames(all_tables$metadata$fields)[all_tables$metadata$fields$tableName == "Site"])  # get row numbers for site table metadata
+    insert_loc <- max(site_rows)  # row after which to insert lat/long field metadata
+    chunk_before <- all_tables$metadata$fields[1:insert_loc,]
+    chunk_after <- all_tables$metadata$fields[(insert_loc + 1):nrow(all_tables$metadata$fields),]
+    all_tables$metadata$fields <- rbind(chunk_before, lat_long_metadata, chunk_after)
+  }
+
   # Load data and metadata into package environment
   lapply(names(all_tables$data), function(table_name) { assign(table_name, all_tables$data[[table_name]], envir = pkg_globals) })
   lapply(names(all_tables$metadata), function(table_name) { assign(table_name, all_tables$metadata[[table_name]], envir = pkg_globals) })
@@ -140,6 +182,7 @@ loadPine <- function(data_path, dictionary_dir = data_dir, dictionary_filenames 
   assign("data_tables", names(all_tables$data), envir = pkg_globals)
 
   invisible(all_tables)
+
 }
 
 
@@ -150,13 +193,13 @@ loadPine <- function(data_path, dictionary_dir = data_dir, dictionary_filenames 
 #'
 #' @export
 #'
-writePine <- function(data_dir = here::here("data", "final"), dictionary_dir = here::here("data", "dictionary"),
+writePine <- function(data_dir = here::here("data"), dictionary_dir = here::here(data_path, "dictionary"),
                       dictionary_filenames = c(tables = "data_dictionary_tables.txt",
                                                attributes = "data_dictionary_attributes.txt",
                                                categories = "data_dictionary_categories.txt"),
                       verbose = FALSE, ...)
 {
-  fetchaccess::writeToFiles(all_tables = filterPine(...), data_dir = data_dir, dictionary_dir = dictionary_dir, lookup_dir = NA, metadata_filenames = metadata_filenames, verbose = verbose)
+  fetchaccess::writeToFiles(all_tables = filterPine(...), data_dir = data_dir, dictionary_dir = dictionary_dir, lookup_dir = NA, dictionary_filenames = dictionary_filenames, verbose = verbose)
 }
 
 #' List valid values for filtering data
@@ -197,7 +240,7 @@ validFilters <- function() {
 #' @param protected_status Character vector of protected status(es)
 #' @param data_processing_level Character vector of data processing level(s)
 #'
-#' @return
+#' @return A data frame or list of data frames
 #' @export
 #'
 filterPine <- function(data_name = "all", network, park, sample_frame, panel, site_code, visit_year, flag, protected_status, data_processing_level, case_sensitive = FALSE, silent = FALSE) {
@@ -283,7 +326,7 @@ filterOne <- function(data, data_name, filter_cols, case_sensitive, silent) {
       cols_filtered <- c(cols_filtered, col)  # Use this to keep track of which columns were actually filtered
       filter_value <- filter_cols[[col]]  # Value(s) to filter on
       if (col == "VisitDate") {
-        data <- dplyr::filter(data, lubridate::year(!!as.symbol(col)) %in% filter_value)
+        data <- dplyr::filter(data, lubridate::year(!!as.symbol(col)) %in% filter_value)  # Filtering by year
       } else if (is.character(data[[col]]) & !case_sensitive) {
         data <- dplyr::filter(data, tolower(!!as.symbol(col)) %in% tolower(filter_value))  # Case-insensitive filtering
       } else {
@@ -301,4 +344,93 @@ filterOne <- function(data, data_name, filter_cols, case_sensitive, silent) {
   }
 
   return(data)
+}
+
+#' Write results of QC functions to an Excel file
+#'
+#' @param outputFileName Name of the output Excel file
+writeQCToExcel <- function(outputFileName = "pine_qc.xlsx") {
+
+  qcResults <- list()
+
+  # Call all QC functions
+  qcResults$noSeedlingDataQC <- fiveneedlepine:::noSeedlingDataQC()
+  qcResults$noTreeDataQC <- fiveneedlepine:::noTreeDataQC()
+
+  qcResults$numberOfSubplotsQC <- fiveneedlepine:::numberOfSubplotsQC()
+  qcResults$subplotQC <- fiveneedlepine:::subplotQC()
+  qcResults$missingTagQC <- fiveneedlepine:::missingTagQC()
+  qcResults$duplicateSeedlingTagQC <- fiveneedlepine:::duplicateSeedlingTagQC()
+  qcResults$causeOfDeathQC <- fiveneedlepine:::causeOfDeathQC()
+  qcResults$vitalityQC <- fiveneedlepine:::vitalityQC()
+  qcResults$seedlingSpeciesQC <- fiveneedlepine:::seedlingSpeciesQC()
+  qcResults$heightClassQC <- fiveneedlepine:::heightClassQC()
+  qcResults$recentlyDeadSeedlingQC <- fiveneedlepine:::recentlyDeadSeedlingQC()
+
+  qcResults$treeDuplicateTagQC <- fiveneedlepine:::treeDuplicateTagQC()
+  qcResults$treeMissingTagQC <- fiveneedlepine:::treeMissingTagQC()
+  qcResults$stemLetterQC <- fiveneedlepine:::stemLetterQC()
+  qcResults$treeCauseOfDeathQC <- fiveneedlepine:::treeCauseOfDeathQC()
+  qcResults$treeHeightQC <- fiveneedlepine:::treeHeightQC()
+  qcResults$dbhQC <- fiveneedlepine:::dbhQC()
+  qcResults$mortalityYearQC <- fiveneedlepine:::mortalityYearQC()
+  qcResults$coneCountQC <- fiveneedlepine:::coneCountQC()
+  qcResults$crownHealthQC <- fiveneedlepine:::crownHealthQC()
+  qcResults$crownKillLowerQC <- fiveneedlepine:::crownKillLowerQC()
+  qcResults$crownKillMiddleQC <- fiveneedlepine:::crownKillMiddleQC()
+  qcResults$crownKillUpperQC <- fiveneedlepine:::crownKillUpperQC()
+  qcResults$treeSubplotQC <- fiveneedlepine:::treeSubplotQC()
+  qcResults$treeVitalityQC <- fiveneedlepine:::treeVitalityQC()
+  qcResults$boleCankersILowerQC <- fiveneedlepine:::boleCankersILowerQC()
+  qcResults$boleCankersIMiddleQC <- fiveneedlepine:::boleCankersIMiddleQC()
+  qcResults$boleCankersIUpperQC <- fiveneedlepine:::boleCankersIUpperQC()
+  qcResults$branchCankersILowerQC <- fiveneedlepine:::branchCankersILowerQC()
+  qcResults$branchCankersIMiddleQC <- fiveneedlepine:::branchCankersIMiddleQC()
+  qcResults$branchCankersIUpperQC <- fiveneedlepine:::branchCankersIUpperQC()
+  qcResults$treeSpeciesQC <- fiveneedlepine:::treeSpeciesQC()
+  qcResults$recentlyDeadTreeQC <- fiveneedlepine:::recentlyDeadTreeQC()
+
+  results <- openxlsx::createWorkbook("pineQC")
+
+  # lapply(qcResults, function(table){
+  #   print(table)
+  #   print(nrow(table))
+  #   print(paste0(table))
+  #   if(nrow(table) > 0){
+  #     openxlsx::addWorksheet(results, paste0('"', .x, '"'))
+  #   }
+  #   # if()
+  #   # print(qcResults[[table]])
+  #   })
+
+  for(i in 1:length(qcResults)) {
+    print(qcResults[i])
+    print(nrow(qcResults[[i]]))
+    if(nrow(qcResults[[i]]) > 0){
+      openxlsx::addWorksheet(results, names(qcResults)[i])
+      openxlsx::writeDataTable(results, names(qcResults)[i], as.data.frame(qcResults[i]))
+    }
+  }
+
+  openxlsx::saveWorkbook(results, outputFileName, overwrite = TRUE)
+
+  # # Add results to workbook
+  #
+  # wb <- createWorkbook("WBP_Validation")
+  # addWorksheet(wb, "qcResults$noSeedlingDataQC")
+  # writeData(wb, "EventsList", Events, rowNames = FALSE)
+  # saveWorkbook(wb, OutputFilename, overwrite = TRUE)
+  # TableDefs[nrow(TableDefs) + 1,] = list("EventsList","All events - review for accuracy and no duplicates")
+  #
+  # TestSeedlingDataDeathCause<- if(nrow(SeedlingDataDeathCause)>0) {
+  #   addWorksheet(wb, "SeedlingDataDeathCause")
+  #   writeData(wb, "SeedlingDataDeathCause", SeedlingDataDeathCause, rowNames = FALSE)
+  #   saveWorkbook(wb, OutputFilename, overwrite = TRUE)
+  #   TableDefs[nrow(TableDefs) + 1,] = list("SeedlingDataDeathCause","Seedling records that are recorded as Dead but don't have a Death Cause")
+  # }
+  #
+  # #### write TAbleDefs back to the Excel sheet
+  # addWorksheet(wb, "TableDefs")
+  # writeData(wb, "TableDefs", TableDefs, rowNames = FALSE)
+  # saveWorkbook(wb, OutputFilename, overwrite = TRUE)
 }

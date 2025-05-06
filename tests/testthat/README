@@ -1,0 +1,8 @@
+To run tests for this package, create a folder in 'tests/testthat' called 'testData' and a folder inside it called 'dictionary'
+
+
+Run 'makingFakeData.R', in the 'tests' folder, updating 'database_dir' to your database location.
+  This will save test data to '.../tests/testthat/testData' and will save dictionary to '.../tests/testthat/testData/dictionary' unless the directories are changed.
+DO NOT COMMIT THIS FOLDER TO YOUR GIT REPOSITORY.
+
+The test files will load the data in the testData folder and run the tests on that.

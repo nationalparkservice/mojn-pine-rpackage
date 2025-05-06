@@ -4,3 +4,6 @@
 .Ruserdata
 data/
 *.accdb
+*.mdb
+*_files/
+*.html

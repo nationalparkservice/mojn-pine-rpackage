@@ -5,8 +5,8 @@
 \title{Write pine data to CSV}
 \usage{
 writePine(
-  data_dir = here::here("data", "final"),
-  dictionary_dir = here::here("data", "dictionary"),
+  data_dir = here::here("data"),
+  dictionary_dir = here::here(data_path, "dictionary"),
   dictionary_filenames = c(tables = "data_dictionary_tables.txt", attributes =
     "data_dictionary_attributes.txt", categories = "data_dictionary_categories.txt"),
   verbose = FALSE,
@@ -17,6 +17,10 @@ writePine(
 \item{data_dir}{Folder to store data csv's in}
 
 \item{dictionary_dir}{Folder to store data dictionaries in}
+
+\item{dictionary_filenames}{Named list with names \code{c("tables", "attributes", "categories")} indicating what to name the tables, attributes, and categories data dictionaries. You are encouraged to keep the default names unless you have a good reason to change them.}
+
+\item{verbose}{Output feedback to console?}
 
 \item{...}{Arguments to pass to \code{\link[=filterPine]{filterPine()}}}
 }

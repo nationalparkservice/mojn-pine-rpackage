@@ -1,0 +1,312 @@
+---
+title: "Ecological Metrics 2"
+format: 
+  html:
+    page-layout: custom
+    embed-resources: true
+execute: 
+  echo: false
+  message: false
+  warning: false
+  results: false
+engine: knitr  
+---
+
+```{css echo=FALSE}
+.grid {
+text-align: center;
+}
+```
+
+::: grid
+::: g-col-2
+:::
+
+::: g-col-8
+```{r}
+library(plotly)
+library(viridis)
+library(khroma)
+library(patchwork)
+library(leaflet)
+library(tidyverse)
+```
+
+```{r}
+#| output: false
+
+# Import Data Data
+
+data_dir = "data"
+
+# Extract the path of the first Access database in the UCBN folder inside the data folder folder of the project directory
+# Or the database path can be input manually
+# TODO: currently pulling the database in the UCBN folder which has all networks up to 2022
+database_dir <- common::file.find(here::here("data", "UCBN"), "*.accdb", up = 0)[1]
+
+pine <- fiveneedlepine::loadPine(database_dir)
+
+source("../../R/calculations.R")
+pine <- fiveneedlepine:::cleaningPine(pine)
+```
+
+## Map
+
+```{r}
+map <- leaflet() %>%
+  addTiles() %>%
+  setView(-114.25, 38.88, zoom = 5.4) %>%
+  addCircleMarkers(lng = pine$data$Site$decimalLongitude, lat = pine$data$Site$decimalLatitude, stroke = FALSE, fillOpacity = 0.75, fillColor = "#0000a5", popup = paste0(pine$data$Site$locationID, "\n", "Community: ", pine$data$Site$sampleFrame), radius = 8)
+```
+
+```{r}
+map
+```
+
+## Live Trees by Park
+
+::: panel-tabset
+##### Tree Count
+
+```{r}
+countGraph <- pine$data$LiveTrees %>%
+  getTreeCount(park) %>%
+  group_by(park, scientificName) %>%
+  summarise(avgCount = mean(count)) %>%
+  ggplot(aes(x = factor(park), y = avgCount, fill = factor(scientificName))) +
+  geom_col()  +
+  #facet_wrap(~park) + 
+  theme_minimal() + 
+  labs(title = "Tree Count",
+       x = "Park", y = "Count",
+       fill = "Species") + 
+    theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(hjust = 0.5),
+         strip.text = element_text(size = 6)) 
+# +
+#   scale_fill_light()
+
+plotly::ggplotly(countGraph)
+```
+
+##### Density
+
+```{r}
+# Species, Total, 5cm DBH bins
+# Count of trees / area sampled
+# #/ha
+
+densityGraph <- pine$data$LiveTrees %>%
+  getDensityDBH() %>%
+  group_by(scientificName) %>%
+  mutate(n = n()) %>%
+  # Filter out species that don't have enough data points to graph
+  filter(n > 6) %>%
+  mutate(DBHGroup = str_extract(DBHGroup, regex("^[^]]*"))) %>%
+  mutate(DBHGroup = as.numeric(str_extract(DBHGroup, regex("[^,]*$")))) %>%
+  ggplot(aes(x = factor(DBHGroup), y = avgDensity, color = factor(visitNumber))) +
+  #geom_point() + 
+  geom_line(aes(group = factor(visitNumber))) +
+  facet_wrap(vars(scientificName), scales = "free", strip.position = "bottom") + 
+  theme_minimal() + 
+  labs(title = "Mean Density",
+       x = "DBH (cm)", y = "Density (#/ha)",
+       color = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) +
+  scale_fill_light() +
+  theme(axis.text.x = element_text(size = 6, angle = 315)) +
+  theme(panel.spacing.y = unit(3, "lines")) 
+# +
+#   scale_color_light()
+
+#densityGraph
+
+gp <- plotly::ggplotly(densityGraph)
+
+# Get the names of the legend entries
+df <- data.frame(id = seq_along(gp$x$data), legend_entries = unlist(lapply(gp$x$data, `[[`, "name")))
+# Extract the group identifier
+df$legend_group <- gsub("^\\((.*?),\\d+\\)", "\\1", df$legend_entries)
+# Add an indicator for the first entry per group
+df$is_first <- !duplicated(df$legend_group)
+
+for (i in df$id) {
+  # Is the layer the first entry of the group?
+  is_first <- df$is_first[[i]]
+  # Assign the group identifier to the name and legendgroup arguments
+  gp$x$data[[i]]$name <- df$legend_group[[i]]
+  gp$x$data[[i]]$legendgroup <- gp$x$data[[i]]$name
+  # Show the legend only for the first layer of the group 
+  if (!is_first) gp$x$data[[i]]$showlegend <- FALSE
+}
+gp
+```
+
+##### Frequency
+
+```{r}
+# Average frequency of each species - includes plots without a species when averaging
+frequencyData <- pine$data$LiveTrees %>%
+  getFrequency(grouping = park) %>%
+  group_by(scientificName) %>%
+  mutate(n = n()) %>%
+  #filter(n > 10) %>%
+  group_by(park) %>%
+  mutate(numberOfPlots = dplyr::n_distinct(park)) %>%
+  group_by(scientificName, park) %>%
+  summarise(avgFrequency = sum(frequency)/first(numberOfPlots), n = n()) %>%
+  #filter(n > 3) %>%
+  ggplot(aes(x = factor(scientificName), y = avgFrequency, fill = factor(park))) +
+  geom_col(stat="identity", position = position_dodge(preserve = "single"))  +
+  theme_minimal() + 
+  labs(title = "Mean Frequency",
+       x = "Species", y = "Percent",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5, angle = 315)) +
+  scale_fill_light()
+
+plotly::ggplotly(frequencyData)
+```
+
+##### Dominance
+
+```{r}
+dominance <- pine$data$LiveTrees %>%
+  getDominance(grouping = park) %>%
+    group_by(scientificName) %>%
+  mutate(n = n()) %>%
+  # Remove species with not enough data points to graph
+  filter(n > 10) %>%
+  ggplot(aes(x = factor(visitNumber), y = dominance, fill = factor(visitNumber))) +
+  facet_wrap(~scientificName, scales="free_y", drop= TRUE) +
+  geom_violin() + 
+    stat_summary(fun = median, geom = "point", position = position_dodge(0.9)) +
+  stat_summary(fun = mean, geom = "point", position = position_dodge(0.9), color = "red") +
+  theme_minimal() + 
+  labs(title = "Dominance",
+       x = "Species", y = "Dominance (m^2/ha)",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) 
+# +
+#   scale_fill_light()
+
+dominance
+```
+
+##### Relative Density
+
+```{r}
+relativeDensityGraph <- pine$data$LiveTrees %>%
+  getRelativeDensity(grouping = park) %>%
+  group_by(park, scientificName) %>%
+  summarise(avgRelativeDensity = mean(relativeDensity)) %>%
+  ggplot(aes(x = factor(park), y = avgRelativeDensity, fill = factor(scientificName))) +
+  geom_col()  +
+  #facet_wrap(~park) + 
+  theme_minimal() + 
+  labs(title = "Relative Density",
+       x = "Visit", y = "Relative Density",
+       fill = "Species") + 
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(hjust = 0.5),
+         strip.text = element_text(size = 6)) 
+# +
+#   scale_fill_light() 
+# +
+#   scale_fill_muted()
+
+plotly::ggplotly(relativeDensityGraph)
+```
+
+##### Relative Frequency
+
+```{r}
+
+relativeFrequency <- pine$data$LiveTrees %>% 
+  getFrequency(grouping = park) %>%
+  ggplot(aes(x = factor(visitNumber), y = relativeFrequency, fill = factor(scientificName))) +
+  geom_col() +
+  facet_wrap(~park) +
+  theme_minimal() + 
+  labs(title = "Relative Frequency",
+       x = "Visit", y = "Percent",
+       fill = "Species") + 
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(hjust = 0.5),
+         strip.text = element_text(size = 6)) 
+# +
+#   scale_fill_light()
+
+ggplotly(relativeFrequency)
+```
+
+##### Relative Dominance
+
+```{r}
+relDomiance <- pine$data$LiveTrees %>%
+  getDominance(grouping = park) %>%
+  ggplot(aes(x = factor(visitNumber), y = relativeDominance, fill = factor(scientificName))) +
+  geom_col() +
+  facet_wrap(~park) + 
+  theme_minimal() + 
+  labs(title = "Relative Dominance",
+       x = "Visit Number", y = "Percent",
+       fill = "Species") + 
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(hjust = 0.5),
+         strip.text = element_text(size = 6)) 
+# +
+#   scale_fill_light()
+
+ggplotly(relDomiance)
+```
+
+##### Importance Value
+
+```{r}
+importanceVal <- pine$data$LiveTrees %>%
+  getImportanceValue(grouping = park) %>%
+  ggplot(aes(x = factor(visitNumber), y = importanceValue, fill = factor(scientificName))) +
+  geom_col() +
+  facet_wrap(~park) + 
+  theme_minimal() + 
+  labs(title = "Importance Value",
+       x = "Visit Number", y = "Value",
+       fill = "Species") + 
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(hjust = 0.5),
+         strip.text = element_text(size = 6)) 
+# +
+#   scale_fill_light()
+
+ggplotly(importanceVal)
+```
+
+##### Tree Height
+
+```{r}
+pine$data$LiveTrees %>%
+  group_by(scientificName, park) %>%
+  mutate(n = n()) %>%
+  # Remove species with not enough data points to graph
+  filter(n > 4) %>%
+  ggplot(aes(x = factor(visitNumber), y = treeHeight_m, fill = factor(visitNumber))) +
+  facet_wrap(~scientificName, scales="free_y", drop= TRUE) +
+  geom_violin() + 
+  stat_summary(fun = median, geom = "point", position = position_dodge(0.9)) +
+  stat_summary(fun = mean, geom = "point", position = position_dodge(0.9), color = "red") +
+  theme_minimal() + 
+  labs(title = "Tree Height",
+       x = "Species", y = "Height (m)",
+       fill = "Visit") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(hjust = 0.5)) 
+# +
+#   scale_fill_light()
+```
+:::
+:::
+:::

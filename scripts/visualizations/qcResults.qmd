@@ -1,0 +1,449 @@
+---
+title: "QC Results"
+format: 
+  html:
+    embed-resources: true
+execute: 
+  echo: false
+---
+
+
+```{r, message=FALSE, echo=FALSE, include=FALSE}
+library(tidyverse)
+library(fiveneedlepine)
+
+# Import Data
+
+data_dir = "data"
+
+# Extract the path of the first Access database in the data folder folder of the project directory
+# Or the database path can be input manually
+database_dir <- common::file.find(here::here("data"), "*.accdb", up = 0)[1]
+
+fiveneedlepine::loadPine(database_dir)
+```
+
+# Event QC
+
+##### Check there is Seedling Data for all Events
+```{r}
+if(nrow(fiveneedlepine:::noSeedlingDataQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::noSeedlingDataQC())
+}
+```
+
+
+
+##### Check there is Tree Data for all Events
+```{r}
+if(nrow(fiveneedlepine:::noTreeDataQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::noTreeDataQC())
+}
+```
+
+
+# Tree QC
+
+##### Check for Duplicate Tree Tags
+```{r}
+if(nrow(fiveneedlepine:::treeDuplicateTagQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::treeDuplicateTagQC())
+}
+```
+
+
+##### Check for Missing Tree Tags
+```{r}
+if(nrow(fiveneedlepine:::treeMissingTagQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::treeMissingTagQC())
+}
+```
+
+
+##### Check that all the Stem Letters are Letters
+```{r}
+if(nrow(fiveneedlepine:::stemLetterQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::stemLetterQC())
+}
+```
+
+
+##### Check if Cause of Death is missing or a non-Valid Cause of Death
+```{r}
+if(nrow(fiveneedlepine:::treeCauseOfDeathQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::treeCauseOfDeathQC())
+}
+```
+
+
+##### Check if Height is Missing or Three Standard Deviations Greater than Median
+```{r}
+# TODO: a possible way to nicely print the longer graphs
+# DT::datatable(fiveneedlepine:::treeHeightQC() %>% select(-eventID), 
+#          #extensions = c('FixedColumns',"FixedHeader"),
+#          rownames = FALSE,
+#           options = list(scrollX = TRUE, 
+#                          paging=TRUE,
+#                          fixedHeader=TRUE))
+```
+
+
+```{r}
+if(nrow(fiveneedlepine:::treeHeightQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::treeHeightQC())
+}
+```
+
+
+##### Check Height Difference
+
+Check for Trees that have a height change greater than 33% between visits 
+
+```{r}
+if(nrow(fiveneedlepine:::treeHeightDifferenceQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::treeHeightDifferenceQC())
+}
+```
+
+
+##### Check if DBH is Missing or Three Standard Deviations Greater than Median
+```{r}
+if(nrow(fiveneedlepine:::dbhQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::dbhQC())
+}
+```
+
+##### Check DBH Difference
+
+Check for Trees that have a DBH change greater than 33% between visits 
+
+```{r}
+if(nrow(fiveneedlepine:::dbhDifferenceQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::dbhDifferenceQC())
+}
+```
+
+
+##### Check for Recently Dead PIAL Trees with a Null Mortality Year
+```{r}
+if(nrow(fiveneedlepine:::mortalityYearQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::mortalityYearQC())
+}
+```
+
+
+##### Check Cone Count
+
+Return list of trees where female cones exist but there is no cone count or where female cones do not exist but cone count is populated
+
+```{r}
+if(nrow(fiveneedlepine:::coneCountQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::coneCountQC())
+}
+```
+
+
+##### Check Crown Health
+
+Return list of trees who's crown health isn't a domain value or live PIAL trees with missing crown health
+
+```{r}
+if(nrow(fiveneedlepine:::crownHealthQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::crownHealthQC())
+}
+```
+
+
+##### Check Lower Crown Kill
+
+Return a list of trees whose lower crown kill is more than 100% or alive PIAL trees that have a null lower crown kill but are not null in both upper and middle crown kill percents
+
+```{r}
+if(nrow(fiveneedlepine:::crownKillLowerQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::crownKillLowerQC())
+}
+```
+
+
+##### Check Middle Crown Kill
+
+Return a list of trees whose middle crown kill is more than 100% or live PIAL trees that have a null middle crown kill but are not null in both upper and lower crown kill percents
+
+```{r}
+if(nrow(fiveneedlepine:::crownKillMiddleQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::crownKillMiddleQC())
+}
+```
+
+
+##### Check Upper Crown Kill
+
+Return a list of trees whose upper crown kill is more than 100% or live PIAL trees that have a null upper crown kill but are not null in both middle and lower crown kill percents
+
+```{r}
+if(nrow(fiveneedlepine:::crownKillUpperQC()) == 0){
+  cat('No errors')
+} else{
+ rmarkdown::paged_table( fiveneedlepine:::crownKillUpperQC())
+}
+```
+
+
+##### Check Subplot Numbers are between 1 and 5
+```{r}
+if(nrow(fiveneedlepine:::treeSubplotQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::treeSubplotQC())
+}
+```
+
+
+##### Check if Vitality is Missing or a non-Valid Domain Value
+```{r}
+if(nrow(fiveneedlepine:::treeVitalityQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::treeVitalityQC())
+}
+```
+
+
+##### Check Lower Bole Cankers
+
+Return a list of trees with non-valid responses in the lower bole canker columns
+
+```{r}
+if(nrow(fiveneedlepine:::boleCankersILowerQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::boleCankersILowerQC())
+}
+```
+
+
+##### Check Middle Bole Cankers
+
+Return a list of trees with non-valid responses in the middle bole canker columns
+
+```{r}
+if(nrow(fiveneedlepine:::boleCankersIMiddleQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::boleCankersIMiddleQC())
+}
+```
+
+
+##### Check Upper Bole Cankers
+
+Return a list of trees with non-valid responses in the upper bole canker columns
+
+```{r}
+if(nrow(fiveneedlepine:::boleCankersIUpperQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::boleCankersIUpperQC())
+}
+```
+
+
+##### Check Lower Branch Cankers
+
+Return a list of trees with non-valid responses in the lower branch canker columns
+
+```{r}
+if(nrow(fiveneedlepine:::branchCankersILowerQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::branchCankersILowerQC())
+}
+```
+
+
+##### Check Middle Branch Cankers
+
+Return a list of trees with non-valid responses in the middle branch canker columns
+
+```{r}
+if(nrow(fiveneedlepine:::branchCankersIMiddleQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::branchCankersIMiddleQC())
+}
+```
+
+
+##### Check Upper Branch Cankers
+
+Return a list of trees with non-valid responses in the upper branch canker columns
+
+```{r}
+if(nrow(fiveneedlepine:::branchCankersIUpperQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::branchCankersIUpperQC())
+}
+```
+
+
+##### Check Species
+
+Return list of trees with missing or blank scientific names
+
+```{r}
+if(nrow(fiveneedlepine:::treeSpeciesQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::treeSpeciesQC())
+}
+```
+
+
+##### Check that Trees aren't listed as Recently Dead Twice
+```{r}
+if(nrow(fiveneedlepine:::recentlyDeadTreeQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::recentlyDeadTreeQC())
+}
+```
+
+
+
+# Seedling QC
+
+
+##### Check for Plots that do not have 9 Subplots
+```{r}
+if(nrow(fiveneedlepine:::numberOfSubplotsQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::numberOfSubplotsQC())
+}
+```
+
+
+##### Check Subplot Numbers are between 1 and 9 
+```{r}
+if(nrow(fiveneedlepine:::subplotQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::subplotQC())
+}
+```
+
+
+##### Check for Missing Tags
+```{r}
+if(nrow(fiveneedlepine:::missingTagQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::missingTagQC())
+}
+```
+
+
+##### Check for Duplicated Tags
+```{r}
+if(nrow(fiveneedlepine:::duplicateSeedlingTagQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::duplicateSeedlingTagQC())
+}
+```
+
+
+##### Check that Cause of Death is a Valid Domain Value
+```{r}
+if(nrow(fiveneedlepine:::causeOfDeathQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::causeOfDeathQC())
+}
+```
+
+
+##### Check that Vitality is a Valid Domain Value
+```{r}
+if(nrow(fiveneedlepine:::vitalityQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::vitalityQC())
+}
+```
+
+
+##### Check Species
+
+Return list of trees with missing or blank scientific names
+
+```{r}
+if(nrow(fiveneedlepine:::seedlingSpeciesQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::seedlingSpeciesQC())
+}
+```
+
+
+##### Check Height Classes
+
+Return a list of seedlings that are alive but the height class does not match domain values
+
+```{r}
+if(nrow(fiveneedlepine:::heightClassQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::heightClassQC())
+}
+```
+
+
+##### Check that Seedlings aren't listed as Recently Dead Twice
+```{r}
+if(nrow(fiveneedlepine:::recentlyDeadSeedlingQC()) == 0){
+  cat('No errors')
+} else{
+  rmarkdown::paged_table(fiveneedlepine:::recentlyDeadSeedlingQC())
+}
+```
+
+
+
+
+
+
+
+
+
